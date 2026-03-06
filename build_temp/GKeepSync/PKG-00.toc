@@ -1,0 +1,67 @@
+('D:\\AI\\Gkeepsync\\Gkeepsync app\\build_temp\\GKeepSync\\GKeepSync.pkg',
+ {'BINARY': True,
+  'DATA': True,
+  'EXECUTABLE': True,
+  'EXTENSION': True,
+  'PYMODULE': True,
+  'PYSOURCE': True,
+  'PYZ': False,
+  'SPLASH': True,
+  'SYMLINK': False},
+ [('pyi-contents-directory _internal', '', 'OPTION'),
+  ('PYZ-00.pyz',
+   'D:\\AI\\Gkeepsync\\Gkeepsync app\\build_temp\\GKeepSync\\PYZ-00.pyz',
+   'PYZ'),
+  ('struct',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\build_temp\\GKeepSync\\localpycs\\struct.pyc',
+   'PYMODULE'),
+  ('pyimod01_archive',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\build_temp\\GKeepSync\\localpycs\\pyimod01_archive.pyc',
+   'PYMODULE'),
+  ('pyimod02_importers',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\build_temp\\GKeepSync\\localpycs\\pyimod02_importers.pyc',
+   'PYMODULE'),
+  ('pyimod03_ctypes',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\build_temp\\GKeepSync\\localpycs\\pyimod03_ctypes.pyc',
+   'PYMODULE'),
+  ('pyimod04_pywin32',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\build_temp\\GKeepSync\\localpycs\\pyimod04_pywin32.pyc',
+   'PYMODULE'),
+  ('pyiboot01_bootstrap',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\loader\\pyiboot01_bootstrap.py',
+   'PYSOURCE'),
+  ('pyi_rth_inspect',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_inspect.py',
+   'PYSOURCE'),
+  ('pyi_rth__tkinter',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth__tkinter.py',
+   'PYSOURCE'),
+  ('pyi_rth_setuptools',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_setuptools.py',
+   'PYSOURCE'),
+  ('pyi_rth_pkgutil',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgutil.py',
+   'PYSOURCE'),
+  ('pyi_rth_multiprocessing',
+   'D:\\AI\\Gkeepsync\\Gkeepsync '
+   'app\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_multiprocessing.py',
+   'PYSOURCE'),
+  ('main', 'D:\\AI\\Gkeepsync\\Gkeepsync app\\main.py', 'PYSOURCE')],
+ 'python314.dll',
+ True,
+ False,
+ False,
+ [],
+ None,
+ None,
+ None)

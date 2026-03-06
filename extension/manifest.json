@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "GKeepSync Login Helper",
+  "version": "1.0",
+  "description": "Tự động lấy oauth_token khi đăng nhập Google cho app GKeepSync.",
+  "permissions": [
+    "cookies"
+  ],
+  "host_permissions": [
+    "https://accounts.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icon48.png"
+    }
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
