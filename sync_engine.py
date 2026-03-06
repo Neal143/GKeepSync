@@ -13,6 +13,7 @@ from typing import Callable, Optional
 from config import Config
 from keep_client import KeepClient
 from utils.markdown_converter import note_to_markdown, sanitize_filename
+from utils.nlm_worker import NLMWorker
 
 
 class SyncEngine:
@@ -24,6 +25,7 @@ class SyncEngine:
         self._timer: Optional[threading.Timer] = None
         self._is_syncing = False
         self._auto_sync_running = False
+        self._nlm_worker = NLMWorker()
 
         # Callbacks
         self.on_sync_start: Optional[Callable] = None
@@ -102,6 +104,12 @@ class SyncEngine:
                         f.write(md_content)
 
                     synced += 1
+
+                    # --- NotebookLM sync ---
+                    nlm_enabled = self._config.get("nlm_sync_enabled", False)
+                    nlm_nb_id = self._config.get("nlm_notebook_id", "")
+                    if nlm_enabled and nlm_nb_id:
+                        self._nlm_worker.enqueue(filepath, nlm_nb_id)
 
                     if self.on_sync_progress:
                         self.on_sync_progress(note["title"], i + 1, total)

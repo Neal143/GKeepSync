@@ -5,7 +5,7 @@ Quản lý frame switching, threading, kết nối UI ↔ Engine.
 
 import threading
 import customtkinter as ctk
-from datetime import datetime
+
 
 from config import Config
 from keep_client import KeepClient
@@ -51,7 +51,7 @@ class GKeepSyncApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         # Handle close
-        self.protocol("WM_DELETE_CLOSE", self._on_close)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # --- Layout ---
         self.grid_columnconfigure(0, weight=1)
@@ -109,6 +109,15 @@ class GKeepSyncApp(ctk.CTk):
         last_sync = self._sync.get_last_sync_time()
         self._main_frame.update_status(f"✅ Đã kết nối | Last sync: {last_sync}")
         logger.info("Switched to main frame, labels loaded: %d", len(labels))
+
+        # Pre-fill NotebookLM settings
+        self._main_frame._on_nlm_toggle = self._handle_nlm_toggle
+        self._main_frame._on_nlm_id_change = self._handle_nlm_id_change
+        if self._config.get("nlm_sync_enabled", False):
+            self._main_frame._nlm_switch.select()
+        nlm_id = self._config.get("nlm_notebook_id", "")
+        if nlm_id:
+            self._main_frame._nlm_id_var.set(nlm_id)
 
     # ═══════════════════════════════════════════
     # LOGIN
@@ -267,6 +276,22 @@ class GKeepSyncApp(ctk.CTk):
             self._show_toast("Auto sync đã tắt", "info")
 
     # ═══════════════════════════════════════════
+    # NOTEBOOKLM
+    # ═══════════════════════════════════════════
+
+    def _handle_nlm_toggle(self, enabled: bool):
+        self._config.set("nlm_sync_enabled", enabled)
+        self._config.save()
+        state = "bật" if enabled else "tắt"
+        logger.info("NotebookLM sync %s", state)
+        self._show_toast(f"NotebookLM sync đã {state}", "info")
+
+    def _handle_nlm_id_change(self, notebook_id: str):
+        self._config.set("nlm_notebook_id", notebook_id)
+        self._config.save()
+        logger.info("NotebookLM notebook ID set to: %s", notebook_id)
+
+    # ═══════════════════════════════════════════
     # FOLDER
     # ═══════════════════════════════════════════
 
@@ -298,6 +323,7 @@ class GKeepSyncApp(ctk.CTk):
     def _on_close(self):
         """Handle window close."""
         self._sync.stop_auto_sync()
+        self._sync._nlm_worker.stop()
         self._token_server.stop()
         # Save window geometry
         self._config.set("window_geometry", self.geometry())

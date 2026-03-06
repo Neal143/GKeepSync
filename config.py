@@ -22,6 +22,8 @@ DEFAULT_CONFIG = {
     "last_sync_time": "",
     "note_id_mapping": {},
     "window_geometry": "900x650",
+    "nlm_sync_enabled": False,
+    "nlm_notebook_id": "",
 }
 
 

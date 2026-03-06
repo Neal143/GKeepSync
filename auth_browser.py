@@ -4,12 +4,9 @@ Mở browser để user đăng nhập Google, trích xuất oauth_token,
 đổi thành master token qua gpsoauth.exchange_token().
 """
 
-import os
 import hashlib
-import threading
 import webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from typing import Callable, Optional
 
 import gpsoauth
 from utils.logger import logger
@@ -20,9 +17,9 @@ EMBEDDED_SETUP_URL = "https://accounts.google.com/EmbeddedSetup"
 
 def get_master_token_via_browser(
     email: str,
-    on_success: callable = None,
-    on_error: callable = None,
-    on_waiting: callable = None,
+    on_success: Optional[Callable[[str], None]] = None,
+    on_error: Optional[Callable[[str], None]] = None,
+    on_waiting: Optional[Callable[[], None]] = None,
 ):
     """
     Mở browser để user đăng nhập Google, trích xuất oauth_token từ cookie,

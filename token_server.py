@@ -6,6 +6,7 @@ Localhost HTTP server nhận oauth_token từ Chrome Extension.
 import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Any, Callable, Optional
 from utils.logger import logger
 
 TOKEN_SERVER_PORT = 28371
@@ -15,7 +16,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
     """Handles incoming token POST from Chrome Extension."""
 
     # Shared callback - set by TokenServer
-    on_token_received = None
+    on_token_received: Optional[Callable[[str], None]] = None
 
     def do_POST(self):
         if self.path == "/token":
@@ -59,7 +60,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
-    def log_message(self, format, *args):
+    def log_message(self, format: str, *args: Any) -> None:  # type: ignore[override]
         # Suppress default HTTP logs, use our logger instead
         pass
 
@@ -67,7 +68,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
 class TokenServer:
     """Localhost server that receives oauth_token from Chrome Extension."""
 
-    def __init__(self, on_token_received: callable = None):
+    def __init__(self, on_token_received: Optional[Callable[[str], None]] = None):
         self._server = None
         self._thread = None
         _TokenHandler.on_token_received = on_token_received

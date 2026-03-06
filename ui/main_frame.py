@@ -28,6 +28,8 @@ class MainFrame(ctk.CTkFrame):
         self._on_auto_sync_toggle = on_auto_sync_toggle
         self._on_folder_change = on_folder_change
         self._on_logout = on_logout
+        self._on_nlm_toggle: Optional[Callable[[bool], None]] = None
+        self._on_nlm_id_change: Optional[Callable[[str], None]] = None
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)  # Notes list expands
@@ -170,6 +172,40 @@ class MainFrame(ctk.CTkFrame):
         )
         self._sync_btn.pack(side="right")
 
+        # --- NotebookLM Sync ---
+        nlm_frame = ctk.CTkFrame(filter_frame, fg_color="transparent")
+        nlm_frame.grid(row=4, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 8))
+
+        ctk.CTkLabel(
+            nlm_frame, text="📓 NotebookLM:", font=ctk.CTkFont(size=12)
+        ).pack(side="left", padx=(0, 8))
+
+        self._nlm_switch = ctk.CTkSwitch(
+            nlm_frame,
+            text="Sync",
+            font=ctk.CTkFont(size=12),
+            command=self._handle_nlm_toggle,
+            width=60,
+        )
+        self._nlm_switch.pack(side="left", padx=(0, 8))
+
+        ctk.CTkLabel(
+            nlm_frame, text="Notebook ID:", font=ctk.CTkFont(size=11),
+            text_color="gray",
+        ).pack(side="left", padx=(8, 4))
+
+        self._nlm_id_var = ctk.StringVar()
+        self._nlm_id_entry = ctk.CTkEntry(
+            nlm_frame,
+            textvariable=self._nlm_id_var,
+            height=28,
+            width=220,
+            placeholder_text="Paste notebook ID here",
+            font=ctk.CTkFont(size=11),
+        )
+        self._nlm_id_entry.pack(side="left", padx=(0, 4))
+        self._nlm_id_entry.bind("<FocusOut>", lambda e: self._handle_nlm_id_change())
+
         row += 1
 
         # --- Progress Bar ---
@@ -234,6 +270,16 @@ class MainFrame(ctk.CTkFrame):
 
     def _handle_sync(self):
         self._on_sync()
+
+    def _handle_nlm_toggle(self):
+        enabled = bool(self._nlm_switch.get())
+        if self._on_nlm_toggle:
+            self._on_nlm_toggle(enabled)
+
+    def _handle_nlm_id_change(self):
+        nb_id = self._nlm_id_var.get().strip()
+        if self._on_nlm_id_change:
+            self._on_nlm_id_change(nb_id)
 
     def set_folder(self, path: str):
         self._folder_var.set(path)
