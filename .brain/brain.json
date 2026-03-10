@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "schema_version": "1.1.0",
+    "awf_version": "3.3.0"
+  },
+  "project": {
+    "name": "GKeepSync",
+    "type": "Desktop Application",
+    "status": "Active Development"
+  },
+  "tech_stack": {
+    "frontend": {
+      "framework": "CustomTkinter (Python)",
+      "architecture": "MVC / Modular Views"
+    },
+    "backend": {
+      "language": "Python 3.12+",
+      "package_manager": "uv",
+      "concurrency": "Python Threading"
+    },
+    "database": {
+      "type": "SQLite3 (via gkeepapi internally)",
+      "orm": "None"
+    }
+  },
+  "core_integrations": [
+    "Google Keep API (via gkeepapi unofficial client)",
+    "NotebookLM (via notebooklm-mcp-cli via uvx)"
+  ],
+  "features": [
+    "Sync Google Keep notes to local Markdown files",
+    "Download NotebookLM source documents to local Markdown",
+    "Auto-sync loop via background thread",
+    "Dynamic 3-column UI grids for Notes and Notebooks explorer",
+    "Filter Keep notes by Tags and Date natively without API reload"
+  ],
+  "knowledge_items": {
+    "patterns": [
+      "View separation pattern: ui_main_frame.py routes tabs, ui/views/ handles rendering to avoid God Classes",
+      "Worker Threads: all network requests (login, fetch) execute via threading.Thread(daemon=True) to prevent blocking main UI loop"
+    ],
+    "gotchas": [
+      "Rich console legacy mode crashes on Windows: set PYTHONIOENCODING=utf-8 & DATABRICKS_RUNTIME_VERSION=1 before invoking Python CLI shims",
+      "Do NOT use subprocess against 'nlm.exe' directly on Windows as it corrupts Unicode. Use [sys.executable, '-m', 'notebooklm_cli'] after uv env activation.",
+      "CustomTkinter transparency bug: do not assign fg_color='transparent' to frames housing card loops. Leave it blank/dynamic."
+    ],
+    "conventions": [
+      "All views receive lambda callbacks from app.py to preserve modularity",
+      "UI layout uses .grid() natively. .pack() is strictly reserved for inside scrollable containers."
+    ]
+  }
+}

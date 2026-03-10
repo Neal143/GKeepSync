@@ -1,0 +1,60 @@
+{
+    "updated_at": "2026-03-10T22:12:00Z",
+    "working_on": {
+        "feature": "God-Class UI Refactoring",
+        "task": "Completed separation of main_frame.py into 4 independent views.",
+        "status": "done",
+        "files": [
+            "ui/main_frame.py",
+            "ui/views/home_view.py",
+            "ui/views/keep_view.py",
+            "ui/views/nlm_view.py",
+            "ui/views/sync_view.py"
+        ],
+        "blockers": [],
+        "notes": "Module is currently stable. NotebookLM login and fetches operate smoothly."
+    },
+    "pending_tasks": [
+        {
+            "task": "Fix Linting Errors in app.py",
+            "priority": "low",
+            "notes": "Pyre lint checking still shows type checking errors for missing CustomTkinter modules, despite it running successfully in Python 3.12."
+        }
+    ],
+    "recent_changes": [
+        {
+            "timestamp": "2026-03-10T22:05:00Z",
+            "type": "refactor",
+            "description": "Split ui/main_frame.py into functional sub-views to reduce cyclic complexity from 708 lines to 200.",
+            "files": [
+                "ui/main_frame.py",
+                "ui/views/*"
+            ]
+        },
+        {
+            "timestamp": "2026-03-10T15:30:00Z",
+            "type": "bugfix",
+            "description": "Patched uv runtime execution mapping to bypass the NLM executable shim. Fixed Windows legacy rich console Unicode errors.",
+            "files": [
+                "utils/nlm_worker.py"
+            ]
+        }
+    ],
+    "errors_encountered": [
+        {
+            "error": "AttributeError: 'MainFrame' object has no attribute '_nlm_switch'",
+            "solution": "App.py callbacks updated to specifically target `self._main_frame.nlm_view.nlm_switch`.",
+            "resolved": true
+        }
+    ],
+    "decisions_made": [
+        {
+            "decision": "Use modular Views per Tab",
+            "reason": "Allows easier navigation and debugging over the giant MainFrame object"
+        },
+        {
+            "decision": "Directly execute Python with the sys.executable module target rather than nlm.exe",
+            "reason": "Prevents the package executable wrapper from failing gracefully when standard I/O unicode streams collapse."
+        }
+    ]
+}

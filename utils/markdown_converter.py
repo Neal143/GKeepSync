@@ -32,6 +32,29 @@ def note_to_markdown(note: dict) -> str:
     lines = []
 
     # --- YAML Frontmatter ---
+    lines.extend(_generate_frontmatter(note))
+    lines.append("")
+
+    # --- Title ---
+    lines.append(f"# {note['title']}")
+    lines.append("")
+
+    # --- Body ---
+    if note.get("items"):
+        # Checklist note
+        for item in note["items"]:
+            checked = "x" if item.get("checked") else " "
+            lines.append(f"- [{checked}] {item['text']}")
+    elif note.get("text"):
+        lines.append(note["text"])
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _generate_frontmatter(note: dict) -> list[str]:
+    """Generate YAML frontmatter block for a note."""
+    lines = []
     lines.append("---")
     lines.append(f'title: "{_escape_yaml(note["title"])}"')
 
@@ -51,24 +74,7 @@ def note_to_markdown(note: dict) -> str:
 
     lines.append(f'keep_id: "{note["id"]}"')
     lines.append("---")
-    lines.append("")
-
-    # --- Title ---
-    lines.append(f"# {note['title']}")
-    lines.append("")
-
-    # --- Body ---
-    if note.get("items"):
-        # Checklist note
-        for item in note["items"]:
-            checked = "x" if item.get("checked") else " "
-            lines.append(f"- [{checked}] {item['text']}")
-    elif note.get("text"):
-        lines.append(note["text"])
-
-    lines.append("")
-    return "\n".join(lines)
-
+    return lines
 
 def _escape_yaml(text: str) -> str:
     """Escape special chars for YAML string."""

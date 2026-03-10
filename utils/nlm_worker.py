@@ -18,6 +18,12 @@ from utils.logger import logger
 # Delay between consecutive NLM API calls to avoid rate limits (seconds).
 NLM_RATE_LIMIT_DELAY = 2.5
 
+# Path to the Python exe inside the uv-managed nlm tool environment.
+# The ``nlm.exe`` shim compiled by uv allocates a Win32 console,
+# causing the ``rich`` library to use the legacy Windows renderer
+# which crashes on non-cp1252 characters (Vietnamese, emoji, etc).
+# Calling Python directly avoids the shim's console allocation.
+_UV_NLM_PYTHON = Path.home() / "AppData" / "Roaming" / "uv" / "tools" / "notebooklm-mcp-cli" / "Scripts" / "python.exe"
 
 class NLMWorker:
     """Processes NLM upload tasks on a dedicated background thread."""
@@ -151,19 +157,63 @@ class NLMWorker:
 
     @staticmethod
     def _run_nlm(cmd: list[str]) -> Optional[subprocess.CompletedProcess]:
-        """Run an nlm CLI command and return the result."""
+        """Run an nlm CLI command and return the result.
+
+        Instead of calling ``nlm.exe`` (a uv shim that allocates a
+        Win32 console), we invoke the uv-managed Python interpreter
+        directly and import the CLI entry-point.  This avoids the
+        ``rich`` library's legacy Windows renderer which crashes on
+        non-cp1252 characters (Vietnamese, checkmarks, emoji).
+
+        Falls back to calling ``nlm`` directly if the uv Python is
+        not found (e.g. nlm was installed differently).
+        """
+        import os
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["NO_COLOR"] = "1"
+        env["DATABRICKS_RUNTIME_VERSION"] = "1"  # Tricks rich into disabling Windows legacy render
+
+        # Hide console window on Windows.
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+
+        # Build the actual command: either via uv Python or nlm.exe.
+        if _UV_NLM_PYTHON.exists():
+            # Translate ["nlm", "source", "add", ...] to
+            # [python.exe, "-c", "from ... import cli_main; cli_main()",
+            #  "source", "add", ...]
+            nlm_args = cmd[1:]  # strip "nlm" prefix
+            actual_cmd = [
+                str(_UV_NLM_PYTHON), "-c",
+                "import sys; sys.stdout.reconfigure(encoding='utf-8'); sys.stderr.reconfigure(encoding='utf-8'); from notebooklm_tools.cli.main import cli_main; cli_main()",
+            ] + nlm_args
+        else:
+            # Fallback: call nlm.exe directly (may crash on Unicode).
+            actual_cmd = cmd
+            logger.warning(
+                "[NLM] uv Python not found at %s, falling back to nlm.exe",
+                _UV_NLM_PYTHON,
+            )
+
         try:
             return subprocess.run(
-                cmd,
+                actual_cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=120,
-                creationflags=subprocess.CREATE_NO_WINDOW,  # Windows: hide console
+                check=False,
+                env=env,
+                startupinfo=si,
+                creationflags=subprocess.CREATE_NO_WINDOW,
             )
         except FileNotFoundError:
             logger.error(
-                "[NLM] 'nlm' command not found. Is it installed globally? "
-                "(npm install -g notebooklm-cli)"
+                "[NLM] 'nlm' command not found. Is it installed? "
+                "(npm install -g notebooklm-cli or uv tool install notebooklm-mcp-cli)"
             )
             return None
         except subprocess.TimeoutExpired:
@@ -172,3 +222,110 @@ class NLMWorker:
         except Exception as exc:
             logger.error("[NLM] Error running command: %s", exc)
             return None
+
+    @staticmethod
+    def login() -> tuple[bool, str]:
+        """Trigger `nlm login` browser authentication."""
+        try:
+            import os
+            
+            # Using popup console intentionally here for user browser interactions,
+            # but bypassing the shim if possible.
+            env = os.environ.copy()
+            env["PYTHONUTF8"] = "1"
+            env["PYTHONIOENCODING"] = "utf-8"
+            
+            if _UV_NLM_PYTHON.exists():
+                actual_cmd = [
+                    str(_UV_NLM_PYTHON), "-c",
+                    "import sys; sys.stdout.reconfigure(encoding='utf-8'); sys.stderr.reconfigure(encoding='utf-8'); from notebooklm_tools.cli.main import cli_main; cli_main()",
+                    "login"
+                ]
+            else:
+                actual_cmd = ["nlm", "login"]
+            
+            # Popen allows rich to output without crashing the auth flow
+            proc = subprocess.Popen(
+                actual_cmd,
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                env=env
+            )
+            returncode = proc.wait(timeout=120)
+
+            if returncode == 0:
+                return True, "Login NLM thành công!"
+            
+            # Additional fallback check in case rich still crashed on close
+            logger.warning("[NLM] login exited with code %d, verifying auth...", returncode)
+            verify = NLMWorker._run_nlm(["nlm", "notebook", "list", "--json"])
+            if verify and verify.returncode == 0:
+                return True, "Login NLM thành công! (verified)"
+            else:
+                return False, f"Login thất bại (exit code {returncode})"
+                
+        except FileNotFoundError:
+            return False, "Không tìm thấy lệnh 'nlm'. Bạn đã cài notebooklm-mcp-cli chưa?"
+        except subprocess.TimeoutExpired:
+            if 'proc' in locals():
+                proc.kill()
+            return False, "Login quá lâu (timeout 120s). Vui lòng thử lại."
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def get_notebooks() -> tuple[list[dict], Optional[str]]:
+        """Fetch all notebooks using `nlm notebook list --json`."""
+        res = NLMWorker._run_nlm(["nlm", "notebook", "list", "--json"])
+        if not res:
+            return [], "Không thể chạy lệnh nlm."
+        if res.returncode != 0:
+            return [], f"Lỗi lấy notebook: {res.stderr}"
+
+        try:
+            # Sometime CLI outputs trailing texts or newlines, trying to parse just the JSON
+            # In some variations of the script, it dumps list of dicts.
+            import json
+            data = json.loads(res.stdout.strip())
+            if isinstance(data, list):
+                return data, None
+            elif isinstance(data, dict) and "notebooks" in data:
+                return data["notebooks"], None
+            elif isinstance(data, dict):
+                return [data], None
+            return [], "Format JSON không hợp lệ."
+        except json.JSONDecodeError:
+            # Fallback text parsing if not valid json
+            lines = res.stdout.strip().split("\n")
+            nbs = []
+            for line in lines:
+                if line.startswith("-") or ":" in line:
+                    continue # Ignore styling
+                if len(line) > 10:
+                    nbs.append({"id": "unknown", "title": line[:50]})
+            if nbs:
+                return nbs, None
+            return [], f"Lỗi parse dữ liệu từ nlm. Stdout: {res.stdout[:50]}..."
+        except Exception as e:
+            return [], str(e)
+
+    @staticmethod
+    def get_sources(notebook_id: str) -> tuple[list[dict], Optional[str]]:
+        """Fetch all sources for a specific notebook."""
+        res = NLMWorker._run_nlm(["nlm", "source", "list", notebook_id, "--json"])
+        if not res:
+            return [], "Không thể chạy lệnh nlm."
+        if res.returncode != 0:
+            return [], f"Lỗi lấy nguồn: {res.stderr}"
+
+        try:
+            import json
+            data = json.loads(res.stdout.strip())
+            if isinstance(data, list):
+                return data, None
+            elif isinstance(data, dict) and "sources" in data:
+                return data["sources"], None
+            return [], "Format JSON nguồn không hợp lệ."
+        except Exception as e:
+            return [], str(e)

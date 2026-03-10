@@ -31,7 +31,9 @@ class SyncEngine:
         self.on_sync_start: Optional[Callable] = None
         self.on_sync_progress: Optional[Callable[[str, int, int], None]] = None
         self.on_sync_complete: Optional[Callable[[int, int, str], None]] = None
+        self.on_sync_complete: Optional[Callable[[int, int, str], None]] = None
         self.on_sync_error: Optional[Callable[[str], None]] = None
+        self.on_sync_log: Optional[Callable[[str, str, str], None]] = None
 
     @property
     def is_syncing(self) -> bool:
@@ -73,18 +75,8 @@ class SyncEngine:
 
             for i, note in enumerate(notes):
                 try:
-                    # Generate filename
-                    filename = sanitize_filename(note["title"]) + ".md"
-                    filepath = output_folder / filename
-
-                    # Handle duplicate filenames by adding note ID suffix
-                    if filepath.exists():
-                        existing_id = self._get_note_id_from_file(filepath)
-                        if existing_id and existing_id != note["id"]:
-                            short_id = note["id"][:8]
-                            filename = sanitize_filename(note["title"]) + f"_{short_id}.md"
-                            filepath = output_folder / filename
-
+                    filepath = self._get_safe_filepath(note, output_folder)
+                    
                     # Generate markdown content
                     md_content = note_to_markdown(note)
 
@@ -96,6 +88,8 @@ class SyncEngine:
                             synced += 1
                             if self.on_sync_progress:
                                 self.on_sync_progress(note["title"], i + 1, total)
+                            if self.on_sync_log:
+                                self.on_sync_log(filepath.name, "gray", "Đã có sẵn (không đổi)")
                             continue
                         updated += 1
 
@@ -104,6 +98,9 @@ class SyncEngine:
                         f.write(md_content)
 
                     synced += 1
+                    
+                    if self.on_sync_log:
+                        self.on_sync_log(filepath.name, "success", "Đã ghi file thành công")
 
                     # --- NotebookLM sync ---
                     nlm_enabled = self._config.get("nlm_sync_enabled", False)
@@ -116,7 +113,9 @@ class SyncEngine:
 
                 except Exception as e:
                     if self.on_sync_error:
-                        self.on_sync_error(f"Lỗi ghi note '{note['title']}': {e}")
+                        self.on_sync_error(f"Lỗi đọc/ghi '{note['title']}': {e}")
+                    if self.on_sync_log:
+                        self.on_sync_log(note['title'], "error", str(e))
 
             # Update config
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -137,6 +136,22 @@ class SyncEngine:
             return 0, 0, error_msg
         finally:
             self._is_syncing = False
+
+    def _get_safe_filepath(self, note: dict, output_folder: Path) -> Path:
+        """Sinh tên file và kiểm tra trùng lặp."""
+        base_name = sanitize_filename(note["title"])
+        filename = f"{base_name}.md"
+        filepath = output_folder / filename
+
+        # Nếu file đã tồn tại NHƯNG thuộc về một id khác (trùng tên Title) thì gắn thêm ID
+        if filepath.exists():
+            existing_id = self._get_note_id_from_file(filepath)
+            if existing_id and existing_id != note["id"]:
+                short_id = note["id"][:8]
+                filename = f"{base_name}_{short_id}.md"
+                filepath = output_folder / filename
+        
+        return filepath
 
     def _get_note_id_from_file(self, filepath: Path) -> Optional[str]:
         """Extract keep_id from existing markdown file frontmatter."""

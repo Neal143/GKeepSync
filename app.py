@@ -34,6 +34,7 @@ class GKeepSyncApp(ctk.CTk):
         self._sync.on_sync_progress = self._on_sync_progress
         self._sync.on_sync_complete = self._on_sync_complete
         self._sync.on_sync_error = self._on_sync_error
+        self._sync.on_sync_log = self._on_sync_log
 
         # Start token receiver server (for Chrome Extension)
         self._token_server = TokenServer(
@@ -70,7 +71,10 @@ class GKeepSyncApp(ctk.CTk):
             on_auto_sync_toggle=self._handle_auto_sync_toggle,
             on_folder_change=self._handle_folder_change,
             on_logout=self._handle_logout,
+            **self._get_mainframe_kwargs() # We inject on_filter_change dynamically here via dictionary unpacking or just plain arg
         )
+        # Specifically wiring new UI component action
+        self._main_frame.on_filter_change = self._handle_filter_change
 
         # Check for saved credentials
         if self._config.has_credentials:
@@ -113,11 +117,23 @@ class GKeepSyncApp(ctk.CTk):
         # Pre-fill NotebookLM settings
         self._main_frame._on_nlm_toggle = self._handle_nlm_toggle
         self._main_frame._on_nlm_id_change = self._handle_nlm_id_change
+        self._main_frame._on_nlm_login = self._handle_nlm_login
+        self._main_frame._on_nlm_fetch_notebooks = self._fetch_nlm_notebooks
+        self._main_frame._on_nlm_fetch_sources = self._fetch_nlm_sources
+        
         if self._config.get("nlm_sync_enabled", False):
-            self._main_frame._nlm_switch.select()
+            self._main_frame.nlm_view.nlm_switch.select()
         nlm_id = self._config.get("nlm_notebook_id", "")
         if nlm_id:
             self._main_frame._nlm_id_var.set(nlm_id)
+
+        # Load initial notes in background
+        def _fetch_initial_notes():
+            if self._keep.is_logged_in:
+                notes = self._keep.get_notes()
+                self.after(0, lambda: self._on_sync_done(notes))
+
+        threading.Thread(target=_fetch_initial_notes, daemon=True).start()
 
     # ═══════════════════════════════════════════
     # LOGIN
@@ -191,27 +207,53 @@ class GKeepSyncApp(ctk.CTk):
         ))
         self._handle_browser_login(email, oauth_token)
 
+    def _get_mainframe_kwargs(self):
+        return {}
+
     # ═══════════════════════════════════════════
     # SYNC
     # ═══════════════════════════════════════════
 
     def _handle_sync(self):
-        """Handle manual sync - runs in background thread."""
+        """Called when user clicks 'Sync Now'."""
+        if not self._keep.is_logged_in:
+            return
+
+        self._main_frame.set_syncing(True)
+        self._main_frame.reset_progress()
+        
+        # Apply filters before syncing
         labels = self._main_frame.get_selected_labels()
         date_from = self._main_frame.get_date_from()
         date_to = self._main_frame.get_date_to()
 
         def _do_sync():
-            synced, total, msg = self._sync.sync_now(
-                labels=labels, date_from=date_from, date_to=date_to
-            )
-            # Get notes for display
+            self._sync.sync_now(labels=labels, date_from=date_from, date_to=date_to)
+            # Re-fetch local payload
+            if self._keep.is_logged_in:
+                notes = self._keep.get_notes(labels=labels, date_from=date_from, date_to=date_to)
+                self.after(0, lambda: self._on_sync_done(notes))
+
+        threading.Thread(target=_do_sync, daemon=True).start()
+
+    def _handle_filter_change(self):
+        """Called when user changes Tag or Date filters in Keep view (Local Filter Only)"""
+        if not self._keep.is_logged_in:
+            return
+        
+        # Get target filter states
+        labels = self._main_frame.get_selected_labels()
+        date_from = self._main_frame.get_date_from()
+        date_to = self._main_frame.get_date_to()
+
+        def _do_filter():
+            # Native SQLite fetch (no external API query is blasted)
             notes = self._keep.get_notes(
                 labels=labels, date_from=date_from, date_to=date_to
             )
             self.after(0, lambda: self._on_sync_done(notes))
 
-        thread = threading.Thread(target=_do_sync, daemon=True)
+        thread = threading.Thread(target=_do_filter, daemon=True)
         thread.start()
 
     def _on_sync_start(self):
@@ -245,8 +287,24 @@ class GKeepSyncApp(ctk.CTk):
         self.after(0, lambda: self._main_frame.set_syncing(False))
         self.after(0, lambda: self._show_toast(msg, "error"))
 
+    def _on_sync_log(self, title: str, status: str, msg: str):
+        from datetime import datetime
+        time_str = datetime.now().strftime("%H:%M:%S")
+        self.after(0, lambda: self._main_frame.append_keep_log(title, status, msg, time_str))
+
+    def _on_nlm_upload_success(self, filename: str):
+        from datetime import datetime
+        time_str = datetime.now().strftime("%H:%M:%S")
+        self.after(0, lambda: self._main_frame.append_nlm_log(filename, "success", "Đã upload thành công", time_str))
+
+    def _on_nlm_upload_error(self, msg: str):
+        from datetime import datetime
+        time_str = datetime.now().strftime("%H:%M:%S")
+        self.after(0, lambda: self._main_frame.append_nlm_log("Lỗi NLM Upload", "error", msg, time_str))
+
     def _on_sync_done(self, notes: list[dict]):
         """Update notes list after sync."""
+        logger.info("Sync done! Passing %d notes to UI.", len(notes))
         self._main_frame.update_notes_list(notes)
 
     # ═══════════════════════════════════════════
@@ -290,6 +348,35 @@ class GKeepSyncApp(ctk.CTk):
         self._config.set("nlm_notebook_id", notebook_id)
         self._config.save()
         logger.info("NotebookLM notebook ID set to: %s", notebook_id)
+
+    def _handle_nlm_login(self):
+        def _login_thread():
+            success, msg = self._sync._nlm_worker.login()
+            if success:
+                self.after(0, lambda: self._show_toast(msg, "success"))
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
+                # Automatically attempt to fetch notebooks if logic expects it
+                self.after(0, self._fetch_nlm_notebooks)
+            else:
+                self.after(0, lambda: self._show_toast(msg, "error"))
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
+            
+        threading.Thread(target=_login_thread, daemon=True).start()
+
+    def _fetch_nlm_notebooks(self):
+        def _fetch():
+            nbs, err = self._sync._nlm_worker.get_notebooks()
+            if nbs:
+                # If we successfully fetch notebooks, we are clearly logged in
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
+            self.after(0, lambda: self._main_frame.set_nlm_notebooks(nbs, err))
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _fetch_nlm_sources(self, nb_id: str):
+        def _fetch():
+            srcs, err = self._sync._nlm_worker.get_sources(nb_id)
+            self.after(0, lambda: self._main_frame.set_nlm_sources(srcs, err))
+        threading.Thread(target=_fetch, daemon=True).start()
 
     # ═══════════════════════════════════════════
     # FOLDER
