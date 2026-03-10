@@ -3,9 +3,13 @@ GKeepSync - Main Application Window
 Quản lý frame switching, threading, kết nối UI ↔ Engine.
 """
 
+import os
+import sys
 import threading
-import customtkinter as ctk
+import time
+from typing import Optional
 
+import customtkinter as ctk
 
 from config import Config
 from keep_client import KeepClient
@@ -196,21 +200,39 @@ class GKeepSyncApp(ctk.CTk):
         thread = threading.Thread(target=_do_exchange, daemon=True)
         thread.start()
 
-    def _on_extension_token(self, oauth_token: str):
-        """Called when Chrome Extension sends oauth_token to localhost server."""
+    def _on_extension_token(self, email: str, oauth_token: str) -> Optional[str]:
+        """Called when Chrome Extension sends oauth_token to localhost server.
+        Returns the derived master token synchronously so the TokenServer can send it back to the extension.
+        """
         logger.info("Received token from Chrome Extension, processing...")
-        email = self._config.get("email", "") or self._login_frame._browser_email.get().strip()
-
+        email = email or self._config.get("email", "") or self._login_frame._browser_email.get().strip()
+        
         if not email:
             self.after(0, lambda: self._login_frame.show_error(
                 "Nhận được token từ extension nhưng chưa có email! Vui lòng nhập email."
             ))
-            return
+            return None
 
         self.after(0, lambda: self._login_frame._set_status(
             "✨ Nhận token từ Extension! Đang kết nối...", "#3498db"
         ))
-        self._handle_browser_login(email, oauth_token)
+        
+        # We need to do the exchange synchronously here so we can return the master token
+        success, result = exchange_oauth_for_master(email, oauth_token)
+        if success:
+            master_token = result
+            # Spawn login on background thread to not block the server response
+            def _do_login():
+                login_ok, msg = self._keep.login(email, master_token)
+                self.after(0, lambda: self._on_login_result(
+                    login_ok, msg, email, master_token
+                ))
+            threading.Thread(target=_do_login, daemon=True).start()
+            
+            return master_token
+        else:
+            self.after(0, lambda: self._login_frame.show_error(result))
+            return None
 
     def _get_mainframe_kwargs(self):
         return {}

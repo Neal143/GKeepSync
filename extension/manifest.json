@@ -4,10 +4,15 @@
   "version": "1.0",
   "description": "Tự động lấy oauth_token khi đăng nhập Google cho app GKeepSync.",
   "permissions": [
-    "cookies"
+    "cookies",
+    "storage",
+    "identity",
+    "identity.email",
+    "tabs"
   ],
   "host_permissions": [
-    "https://accounts.google.com/*"
+    "https://accounts.google.com/*",
+    "http://127.0.0.1:28371/*"
   ],
   "background": {
     "service_worker": "background.js"

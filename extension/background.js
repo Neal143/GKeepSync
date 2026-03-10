@@ -1,7 +1,8 @@
 /**
  * GKeepSync Login Helper - Background Service Worker
  * Monitors EmbeddedSetup login, extracts oauth_token cookie,
- * sends it to GKeepSync app via localhost.
+ * auto-sends it (with email) to GKeepSync desktop app,
+ * and saves the returned master_token for permanent use.
  */
 
 const GKEEPSYNC_PORT = 28371;
@@ -20,56 +21,98 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         });
 
         if (cookie && cookie.value) {
-            console.log("[GKeepSync] Found oauth_token cookie!");
-            await sendTokenToApp(cookie.value);
+            console.log("[GKeepSync] Found oauth_token cookie! Auto-sending to app...");
+
+            // Get user email from Chrome profile
+            let email = "";
+            try {
+                const userInfo = await chrome.identity.getProfileUserInfo();
+                if (userInfo && userInfo.email) {
+                    email = userInfo.email;
+                }
+            } catch (e) {
+                console.warn("[GKeepSync] Could not fetch identity email", e);
+            }
+
+            // Fallback: check saved email
+            if (!email) {
+                const stored = await chrome.storage.local.get(["lastEmail"]);
+                email = stored.lastEmail || "";
+            }
+
+            if (!email) {
+                // No email available from profile - we will still send it. 
+                // The desktop app might have the email entered in its UI.
+                console.log("[GKeepSync] No email found from Chrome Identity, sending anyway...");
+                chrome.storage.local.set({ oauth_token: cookie.value });
+                chrome.action.setBadgeText({ text: "1" });
+                chrome.action.setBadgeBackgroundColor({ color: "#e67e22" });
+            }
+
+            // Auto-send email + oauth_token to the desktop app
+            try {
+                const url = `http://127.0.0.1:${GKEEPSYNC_PORT}/token`;
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: email, oauth_token: cookie.value }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const masterToken = data.master_token;
+
+                    if (masterToken) {
+                        // Save the permanent master_token (replaces temp oauth_token)
+                        chrome.storage.local.set({
+                            oauth_token: masterToken,
+                            lastEmail: email,
+                            lastStatus: "success",
+                            lastTime: new Date().toLocaleString(),
+                        });
+                        console.log("[GKeepSync] Auto-login success! Master token saved.");
+                    } else {
+                        // App accepted but didn't return master_token
+                        chrome.storage.local.set({
+                            oauth_token: cookie.value,
+                            lastEmail: email,
+                            lastStatus: "success",
+                            lastTime: new Date().toLocaleString(),
+                        });
+                        console.log("[GKeepSync] Auto-login success (no master_token returned).");
+                    }
+
+                    chrome.action.setBadgeText({ text: "✓" });
+                    chrome.action.setBadgeBackgroundColor({ color: "#2ecc71" });
+                } else {
+                    console.error("[GKeepSync] App rejected token:", response.status);
+                    // Save token for manual retry via popup
+                    chrome.storage.local.set({
+                        oauth_token: cookie.value,
+                        lastStatus: "error",
+                        lastError: `App từ chối (HTTP ${response.status})`,
+                        lastTime: new Date().toLocaleString(),
+                    });
+                    chrome.action.setBadgeText({ text: "!" });
+                    chrome.action.setBadgeBackgroundColor({ color: "#e74c3c" });
+                }
+            } catch (fetchErr) {
+                console.error("[GKeepSync] Cannot reach app:", fetchErr.message);
+                // App not running - save token for manual send via popup later
+                chrome.storage.local.set({
+                    oauth_token: cookie.value,
+                    lastStatus: "error",
+                    lastError: "App chưa bật",
+                    lastTime: new Date().toLocaleString(),
+                });
+                chrome.action.setBadgeText({ text: "!" });
+                chrome.action.setBadgeBackgroundColor({ color: "#e74c3c" });
+            }
         }
     } catch (err) {
         console.error("[GKeepSync] Error reading cookie:", err);
     }
 });
-
-/**
- * Send the oauth_token to GKeepSync desktop app via localhost
- */
-async function sendTokenToApp(oauthToken) {
-    const url = `http://127.0.0.1:${GKEEPSYNC_PORT}/token`;
-
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ oauth_token: oauthToken }),
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log("[GKeepSync] Token sent successfully:", data);
-
-            // Notify user via badge
-            chrome.action.setBadgeText({ text: "✓" });
-            chrome.action.setBadgeBackgroundColor({ color: "#2ecc71" });
-
-            // Store status for popup
-            chrome.storage.local.set({
-                lastStatus: "success",
-                lastTime: new Date().toLocaleString(),
-            });
-        } else {
-            throw new Error(`HTTP ${response.status}`);
-        }
-    } catch (err) {
-        console.error("[GKeepSync] Failed to send token:", err.message);
-
-        chrome.action.setBadgeText({ text: "!" });
-        chrome.action.setBadgeBackgroundColor({ color: "#e74c3c" });
-
-        chrome.storage.local.set({
-            lastStatus: "error",
-            lastError: err.message,
-            lastTime: new Date().toLocaleString(),
-        });
-    }
-}
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

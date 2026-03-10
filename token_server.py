@@ -7,7 +7,7 @@ import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Callable, Optional
-from utils.logger import logger
+from utils.logger import logger  # type: ignore
 
 TOKEN_SERVER_PORT = 28371
 
@@ -16,7 +16,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
     """Handles incoming token POST from Chrome Extension."""
 
     # Shared callback - set by TokenServer
-    on_token_received: Optional[Callable[[str], None]] = None
+    on_token_received: Optional[Callable[[str, str], Optional[str]]] = None
 
     def do_POST(self):
         if self.path == "/token":
@@ -25,15 +25,23 @@ class _TokenHandler(BaseHTTPRequestHandler):
                 body = self.rfile.read(length).decode("utf-8")
                 data = json.loads(body)
                 oauth_token = data.get("oauth_token", "")
+                email = data.get("email", "")
 
                 if oauth_token:
                     logger.info("Received oauth_token from extension (%d chars)", len(oauth_token))
-                    # Send CORS-friendly response
-                    self._send_json(200, {"status": "ok", "message": "Token received!"})
-
-                    # Notify the app
+                    
+                    # Notify the app, passing both email and token.
+                    # App should return the retrieved master_token (if successful).
+                    master_token = None
                     if _TokenHandler.on_token_received:
-                        _TokenHandler.on_token_received(oauth_token)
+                        master_token = _TokenHandler.on_token_received(email, oauth_token)
+                        
+                    response_data = {"status": "ok", "message": "Token received!"}
+                    if master_token:
+                        response_data["master_token"] = master_token
+
+                    # Send CORS-friendly response
+                    self._send_json(200, response_data)
                 else:
                     self._send_json(400, {"status": "error", "message": "Missing oauth_token"})
             except Exception as e:
@@ -68,7 +76,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
 class TokenServer:
     """Localhost server that receives oauth_token from Chrome Extension."""
 
-    def __init__(self, on_token_received: Optional[Callable[[str], None]] = None):
+    def __init__(self, on_token_received: Optional[Callable[[str, str], Optional[str]]] = None):
         self._server = None
         self._thread = None
         _TokenHandler.on_token_received = on_token_received
