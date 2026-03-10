@@ -41,6 +41,11 @@ class GKeepSyncApp(ctk.CTk):
             on_token_received=self._on_extension_token
         )
         self._token_server.start()
+        
+        # Start NLM Worker thread and wire its callbacks
+        self._sync._nlm_worker.on_upload_success = self._on_nlm_upload_success
+        self._sync._nlm_worker.on_upload_error = self._on_nlm_upload_error
+        self._sync._nlm_worker.start()
 
         # --- Window Setup ---
         self.title("GKeepSync")
