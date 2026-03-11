@@ -17,6 +17,9 @@ class LoginFrame(ctk.CTkFrame):
         on_browser_login: Callable[[str, str], None] = None,
         **kwargs,
     ):
+        # Thiết lập nền thẻ form login thành trắng tinh cho Apple Light Theme
+        kwargs.setdefault("fg_color", "white")
+        kwargs.setdefault("corner_radius", 16)
         super().__init__(master, **kwargs)
         self._on_login = on_login
         self._on_browser_login = on_browser_login
@@ -26,30 +29,38 @@ class LoginFrame(ctk.CTkFrame):
 
         # --- Logo / Title ---
         title_frame = ctk.CTkFrame(self, fg_color="transparent")
-        title_frame.grid(row=0, column=0, pady=(30, 8))
+        title_frame.grid(row=0, column=0, pady=(40, 16))
 
         ctk.CTkLabel(
             title_frame,
             text="🔄",
-            font=ctk.CTkFont(size=48),
-        ).pack()
+            font=ctk.CTkFont(size=52),
+        ).pack(pady=(0, 8))
 
         ctk.CTkLabel(
             title_frame,
             text="GKeepSync",
-            font=ctk.CTkFont(size=28, weight="bold"),
-        ).pack(pady=(8, 0))
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color="#1C1C1E"
+        ).pack(pady=(0, 4))
 
         ctk.CTkLabel(
             title_frame,
             text="Đồng bộ Google Keep → Markdown",
-            font=ctk.CTkFont(size=13),
-            text_color="gray",
-        ).pack(pady=(4, 0))
+            font=ctk.CTkFont(size=14),
+            text_color="#8E8E93",
+        ).pack()
 
         # --- Tab View: Browser Login vs Manual ---
-        self._tabview = ctk.CTkTabview(self, width=400, height=320)
-        self._tabview.grid(row=1, column=0, padx=60, pady=10, sticky="ew")
+        self._tabview = ctk.CTkTabview(
+            self, 
+            width=400, 
+            height=340,
+            segmented_button_selected_color="#007AFF",
+            segmented_button_selected_hover_color="#005ecb",
+            fg_color="transparent",
+        )
+        self._tabview.grid(row=1, column=0, padx=50, pady=10, sticky="ew")
         self._tabview.add("🌐 Đăng nhập qua Browser")
         self._tabview.add("🔑 Nhập Master Token")
 
@@ -58,14 +69,18 @@ class LoginFrame(ctk.CTkFrame):
         tab_browser.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            tab_browser, text="📧 Email", font=ctk.CTkFont(size=13), anchor="w"
+            tab_browser, text="📧 Email", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1C1C1E", anchor="w"
         ).grid(row=0, column=0, sticky="w", pady=(8, 4))
 
         self._browser_email = ctk.CTkEntry(
             tab_browser,
             placeholder_text="your.email@gmail.com",
-            height=38,
-            font=ctk.CTkFont(size=13),
+            height=40,
+            corner_radius=12,
+            fg_color="#F2F2F7",
+            border_width=0,
+            text_color="#1C1C1E",
+            font=ctk.CTkFont(size=14),
         )
         self._browser_email.grid(row=1, column=0, sticky="ew", pady=(0, 12))
 
@@ -73,11 +88,13 @@ class LoginFrame(ctk.CTkFrame):
         self._open_browser_btn = ctk.CTkButton(
             tab_browser,
             text="1️⃣  Mở trình duyệt đăng nhập",
-            height=38,
-            font=ctk.CTkFont(size=13, weight="bold"),
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self._handle_open_browser,
-            corner_radius=8,
-            fg_color="#2980b9",
+            corner_radius=12,
+            fg_color="#F2F2F7",
+            text_color="#007AFF",
+            hover_color="#E5E5EA",
         )
         self._open_browser_btn.grid(row=2, column=0, sticky="ew", pady=(0, 12))
 
@@ -85,15 +102,20 @@ class LoginFrame(ctk.CTkFrame):
         ctk.CTkLabel(
             tab_browser,
             text='2️⃣  Dán cookie "oauth_token" từ DevTools:',
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#1C1C1E",
             anchor="w",
         ).grid(row=3, column=0, sticky="w", pady=(0, 4))
 
         self._oauth_entry = ctk.CTkEntry(
             tab_browser,
             placeholder_text="oauth2_4/...",
-            height=38,
-            font=ctk.CTkFont(size=13),
+            height=40,
+            corner_radius=12,
+            fg_color="#F2F2F7",
+            border_width=0,
+            text_color="#1C1C1E",
+            font=ctk.CTkFont(size=14),
             show="•",
         )
         self._oauth_entry.grid(row=4, column=0, sticky="ew", pady=(0, 12))
@@ -102,10 +124,13 @@ class LoginFrame(ctk.CTkFrame):
         self._browser_connect_btn = ctk.CTkButton(
             tab_browser,
             text="3️⃣  Lấy Master Token & Kết nối",
-            height=42,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            height=44,
+            font=ctk.CTkFont(size=15, weight="bold"),
             command=self._handle_browser_connect,
-            corner_radius=8,
+            corner_radius=12,
+            fg_color="#007AFF",
+            text_color="white",
+            hover_color="#005ecb",
         )
         self._browser_connect_btn.grid(row=5, column=0, sticky="ew", pady=(0, 8))
 
@@ -114,29 +139,38 @@ class LoginFrame(ctk.CTkFrame):
         tab_manual.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            tab_manual, text="📧 Email", font=ctk.CTkFont(size=13), anchor="w"
+            tab_manual, text="📧 Email", font=ctk.CTkFont(size=13, weight="bold"), text_color="#1C1C1E", anchor="w"
         ).grid(row=0, column=0, sticky="w", pady=(8, 4))
 
         self._email_entry = ctk.CTkEntry(
             tab_manual,
             placeholder_text="your.email@gmail.com",
-            height=38,
-            font=ctk.CTkFont(size=13),
+            height=40,
+            corner_radius=12,
+            fg_color="#F2F2F7",
+            border_width=0,
+            text_color="#1C1C1E",
+            font=ctk.CTkFont(size=14),
         )
         self._email_entry.grid(row=1, column=0, sticky="ew", pady=(0, 16))
 
         ctk.CTkLabel(
             tab_manual,
             text="🔑 Master Token",
-            font=ctk.CTkFont(size=13),
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#1C1C1E",
             anchor="w",
         ).grid(row=2, column=0, sticky="w", pady=(0, 4))
 
         self._token_entry = ctk.CTkEntry(
             tab_manual,
             placeholder_text="aas_et/...",
-            height=38,
-            font=ctk.CTkFont(size=13),
+            height=40,
+            corner_radius=12,
+            fg_color="#F2F2F7",
+            border_width=0,
+            text_color="#1C1C1E",
+            font=ctk.CTkFont(size=14),
             show="•",
         )
         self._token_entry.grid(row=3, column=0, sticky="ew", pady=(0, 4))
@@ -144,21 +178,28 @@ class LoginFrame(ctk.CTkFrame):
         self._show_token = ctk.CTkCheckBox(
             tab_manual,
             text="Hiện token",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=12),
+            text_color="#8E8E93",
             command=self._toggle_token_visibility,
             height=20,
-            checkbox_width=18,
-            checkbox_height=18,
+            checkbox_width=20,
+            checkbox_height=20,
+            border_color="#C7C7CC",
+            hover_color="#005ecb",
+            fg_color="#007AFF"
         )
         self._show_token.grid(row=4, column=0, sticky="w", pady=(0, 16))
 
         self._connect_btn = ctk.CTkButton(
             tab_manual,
             text="🔗  Kết nối",
-            height=42,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            height=44,
+            font=ctk.CTkFont(size=15, weight="bold"),
             command=self._handle_connect,
-            corner_radius=8,
+            corner_radius=12,
+            fg_color="#007AFF",
+            text_color="white",
+            hover_color="#005ecb",
         )
         self._connect_btn.grid(row=5, column=0, sticky="ew", pady=(0, 8))
 
@@ -166,20 +207,21 @@ class LoginFrame(ctk.CTkFrame):
         self._status_label = ctk.CTkLabel(
             self,
             text="",
-            font=ctk.CTkFont(size=12),
-            text_color="gray",
+            font=ctk.CTkFont(size=13),
+            text_color="#8E8E93",
             wraplength=350,
         )
         self._status_label.grid(row=2, column=0, pady=(4, 4))
 
         # --- Help Section ---
         help_frame = ctk.CTkFrame(self, fg_color="transparent")
-        help_frame.grid(row=3, column=0, padx=60, pady=(0, 20))
+        help_frame.grid(row=3, column=0, padx=50, pady=(0, 20))
 
         ctk.CTkLabel(
             help_frame,
             text="💡 Hướng dẫn đăng nhập qua Browser:",
             font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#1C1C1E",
             anchor="w",
         ).pack(anchor="w")
 
@@ -193,8 +235,8 @@ class LoginFrame(ctk.CTkFrame):
         ctk.CTkLabel(
             help_frame,
             text=help_text,
-            font=ctk.CTkFont(size=11),
-            text_color="gray",
+            font=ctk.CTkFont(size=12),
+            text_color="#8E8E93",
             justify="left",
             anchor="w",
         ).pack(anchor="w", padx=(12, 0))
