@@ -7,6 +7,8 @@ const loginBtn = document.getElementById("loginBtn");
 const sendBtn = document.getElementById("sendBtn");
 const emailInput = document.getElementById("emailInput");
 const tokenInput = document.getElementById("tokenInput");
+const toggleTokenBtn = document.getElementById("toggleTokenBtn");
+const copyTokenBtn = document.getElementById("copyTokenBtn");
 
 // 1. Initialize data when popup opens
 async function initForm() {
@@ -53,6 +55,30 @@ loginBtn.addEventListener("click", () => {
         statusEl.textContent = "🌐 Đang mở trang đăng nhập...";
         window.close();
     });
+});
+
+toggleTokenBtn.addEventListener("click", () => {
+    if (tokenInput.type === "password") {
+        tokenInput.type = "text";
+        toggleTokenBtn.textContent = "🙈";
+    } else {
+        tokenInput.type = "password";
+        toggleTokenBtn.textContent = "👁️";
+    }
+});
+
+copyTokenBtn.addEventListener("click", async () => {
+    if (!tokenInput.value) return;
+    try {
+        await navigator.clipboard.writeText(tokenInput.value);
+        const originalContent = copyTokenBtn.textContent;
+        copyTokenBtn.textContent = "✅";
+        setTimeout(() => {
+            copyTokenBtn.textContent = originalContent;
+        }, 2000);
+    } catch (err) {
+        console.error("Failed to copy", err);
+    }
 });
 
 sendBtn.addEventListener("click", async () => {

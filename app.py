@@ -3,18 +3,14 @@ GKeepSync - Main Application Window
 Quản lý frame switching, threading, kết nối UI ↔ Engine.
 """
 
-import os
-import sys
 import threading
-import time
-from typing import Optional
-
 import customtkinter as ctk
+from typing import Callable, Optional
+from auth_browser import exchange_oauth_for_master
 
 from config import Config
 from keep_client import KeepClient
 from sync_engine import SyncEngine
-from auth_browser import exchange_oauth_for_master
 from token_server import TokenServer
 from ui.login_frame import LoginFrame
 from ui.main_frame import MainFrame
@@ -38,18 +34,12 @@ class GKeepSyncApp(ctk.CTk):
         self._sync.on_sync_progress = self._on_sync_progress
         self._sync.on_sync_complete = self._on_sync_complete
         self._sync.on_sync_error = self._on_sync_error
-        self._sync.on_sync_log = self._on_sync_log
 
         # Start token receiver server (for Chrome Extension)
         self._token_server = TokenServer(
             on_token_received=self._on_extension_token
         )
         self._token_server.start()
-        
-        # Start NLM Worker thread and wire its callbacks
-        self._sync._nlm_worker.on_upload_success = self._on_nlm_upload_success
-        self._sync._nlm_worker.on_upload_error = self._on_nlm_upload_error
-        self._sync._nlm_worker.start()
 
         # --- Window Setup ---
         self.title("GKeepSync")
@@ -80,10 +70,7 @@ class GKeepSyncApp(ctk.CTk):
             on_auto_sync_toggle=self._handle_auto_sync_toggle,
             on_folder_change=self._handle_folder_change,
             on_logout=self._handle_logout,
-            **self._get_mainframe_kwargs() # We inject on_filter_change dynamically here via dictionary unpacking or just plain arg
         )
-        # Specifically wiring new UI component action
-        self._main_frame.on_filter_change = self._handle_filter_change
 
         # Check for saved credentials
         if self._config.has_credentials:
@@ -124,25 +111,22 @@ class GKeepSyncApp(ctk.CTk):
         logger.info("Switched to main frame, labels loaded: %d", len(labels))
 
         # Pre-fill NotebookLM settings
-        self._main_frame._on_nlm_toggle = self._handle_nlm_toggle
-        self._main_frame._on_nlm_id_change = self._handle_nlm_id_change
-        self._main_frame._on_nlm_login = self._handle_nlm_login
-        self._main_frame._on_nlm_fetch_notebooks = self._fetch_nlm_notebooks
-        self._main_frame._on_nlm_fetch_sources = self._fetch_nlm_sources
-        
-        if self._config.get("nlm_sync_enabled", False):
-            self._main_frame.nlm_view.nlm_switch.select()
+        # Set states
+        if getattr(self._main_frame, 'home_view', None):
+            if self._config.get("auto_sync_enabled"):
+                try:
+                    self._main_frame.home_view._auto_sync_switch.select()
+                except AttributeError:
+                    pass
+
+            if self._config.get("nlm_sync_enabled"):
+                try:
+                    self._main_frame.nlm_view.nlm_switch.select()
+                except AttributeError:
+                    pass
         nlm_id = self._config.get("nlm_notebook_id", "")
         if nlm_id:
             self._main_frame._nlm_id_var.set(nlm_id)
-
-        # Load initial notes in background
-        def _fetch_initial_notes():
-            if self._keep.is_logged_in:
-                notes = self._keep.get_notes()
-                self.after(0, lambda: self._on_sync_done(notes))
-
-        threading.Thread(target=_fetch_initial_notes, daemon=True).start()
 
     # ═══════════════════════════════════════════
     # LOGIN
@@ -201,86 +185,55 @@ class GKeepSyncApp(ctk.CTk):
         thread.start()
 
     def _on_extension_token(self, email: str, oauth_token: str) -> Optional[str]:
-        """Called when Chrome Extension sends oauth_token to localhost server.
-        Returns the derived master token synchronously so the TokenServer can send it back to the extension.
-        """
-        logger.info("Received token from Chrome Extension, processing...")
+        """Called when Chrome Extension sends oauth_token & email to localhost server."""
+        logger.info("[AppExtToken] Received token from Chrome Extension for %s, processing...", email or "(empty)")
+
         email = email or self._config.get("email", "") or self._login_frame._browser_email.get().strip()
         
         if not email:
+            logger.warning("[AppExtToken] No email available to complete login!")
             self.after(0, lambda: self._login_frame.show_error(
-                "Nhận được token từ extension nhưng chưa có email! Vui lòng nhập email."
+                "Nhận được token từ extension nhưng bị thiếu email! Vui lòng nhập email vào ô Đăng nhập trình duyệt."
             ))
             return None
 
         self.after(0, lambda: self._login_frame._set_status(
-            "✨ Nhận token từ Extension! Đang kết nối...", "#3498db"
+            "✨ Nhận thông tin từ Extension! Đang tự động đăng nhập...", "#3498db"
         ))
         
-        # We need to do the exchange synchronously here so we can return the master token
-        success, result = exchange_oauth_for_master(email, oauth_token)
+        # Determine master token using keep_client smart rules
+        # KeepClient handles oauth2_ vs aas_et internally.
+        success, msg = self._keep.login(email, oauth_token)
+        
         if success:
-            master_token = result
-            # Spawn login on background thread to not block the server response
-            def _do_login():
-                login_ok, msg = self._keep.login(email, master_token)
-                self.after(0, lambda: self._on_login_result(
-                    login_ok, msg, email, master_token
-                ))
-            threading.Thread(target=_do_login, daemon=True).start()
-            
+            master_token = self._keep.get_master_token()
+            self.after(0, lambda: self._on_login_result(True, msg, email, master_token))
             return master_token
         else:
-            self.after(0, lambda: self._login_frame.show_error(result))
+            self.after(0, lambda: self._on_login_result(False, msg, email, ""))
             return None
-
-    def _get_mainframe_kwargs(self):
-        return {}
 
     # ═══════════════════════════════════════════
     # SYNC
     # ═══════════════════════════════════════════
 
     def _handle_sync(self):
-        """Called when user clicks 'Sync Now'."""
-        if not self._keep.is_logged_in:
-            return
-
-        self._main_frame.set_syncing(True)
-        self._main_frame.reset_progress()
-        
-        # Apply filters before syncing
+        """Handle manual sync - runs in background thread."""
         labels = self._main_frame.get_selected_labels()
         date_from = self._main_frame.get_date_from()
         date_to = self._main_frame.get_date_to()
 
         def _do_sync():
-            self._sync.sync_now(labels=labels, date_from=date_from, date_to=date_to)
-            # Re-fetch local payload
-            if self._keep.is_logged_in:
-                notes = self._keep.get_notes(labels=labels, date_from=date_from, date_to=date_to)
-                self.after(0, lambda: self._on_sync_done(notes))
-
-        threading.Thread(target=_do_sync, daemon=True).start()
-
-    def _handle_filter_change(self):
-        """Called when user changes Tag or Date filters in Keep view (Local Filter Only)"""
-        if not self._keep.is_logged_in:
-            return
-        
-        # Get target filter states
-        labels = self._main_frame.get_selected_labels()
-        date_from = self._main_frame.get_date_from()
-        date_to = self._main_frame.get_date_to()
-
-        def _do_filter():
-            # Native SQLite fetch (no external API query is blasted)
+            synced, total, msg = self._sync.sync_now(
+                labels=labels, date_from=date_from, date_to=date_to
+            )
+            # Get notes for display
             notes = self._keep.get_notes(
                 labels=labels, date_from=date_from, date_to=date_to
             )
             self.after(0, lambda: self._on_sync_done(notes))
 
-        thread = threading.Thread(target=_do_filter, daemon=True)
+        thread = threading.Thread(target=_do_sync, daemon=True)
         thread.start()
 
     def _on_sync_start(self):
@@ -312,26 +265,18 @@ class GKeepSyncApp(ctk.CTk):
     def _on_sync_error(self, msg: str):
         logger.error("Sync error: %s", msg)
         self.after(0, lambda: self._main_frame.set_syncing(False))
-        self.after(0, lambda: self._show_toast(msg, "error"))
 
-    def _on_sync_log(self, title: str, status: str, msg: str):
-        from datetime import datetime
-        time_str = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self._main_frame.append_keep_log(title, status, msg, time_str))
-
-    def _on_nlm_upload_success(self, filename: str):
-        from datetime import datetime
-        time_str = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self._main_frame.append_nlm_log(filename, "success", "Đã upload thành công", time_str))
-
-    def _on_nlm_upload_error(self, msg: str):
-        from datetime import datetime
-        time_str = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self._main_frame.append_nlm_log("Lỗi NLM Upload", "error", msg, time_str))
+        # Check for NotebookLM auth expiration specifically
+        if "Authentication expired" in msg:
+            self.after(0, lambda: self._show_toast(
+                "Phiên NotebookLM đã hết hạn. Vui lòng bấm 'Login NLM' để đăng nhập lại.",
+                "error",
+            ))
+        else:
+            self.after(0, lambda: self._show_toast(msg, "error"))
 
     def _on_sync_done(self, notes: list[dict]):
         """Update notes list after sync."""
-        logger.info("Sync done! Passing %d notes to UI.", len(notes))
         self._main_frame.update_notes_list(notes)
 
     # ═══════════════════════════════════════════
@@ -377,33 +322,52 @@ class GKeepSyncApp(ctk.CTk):
         logger.info("NotebookLM notebook ID set to: %s", notebook_id)
 
     def _handle_nlm_login(self):
-        def _login_thread():
-            success, msg = self._sync._nlm_worker.login()
-            if success:
-                self.after(0, lambda: self._show_toast(msg, "success"))
-                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
-                # Automatically attempt to fetch notebooks if logic expects it
-                self.after(0, self._fetch_nlm_notebooks)
-            else:
-                self.after(0, lambda: self._show_toast(msg, "error"))
-                self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
-            
-        threading.Thread(target=_login_thread, daemon=True).start()
+        self._show_toast("Đang mở trình duyệt để đăng nhập NotebookLM...", "info")
+        
+        def _do_login():
+            import subprocess
+            from utils.nlm_worker import _UV_NLM_PYTHON
+            try:
+                # Build command to run nlm login
+                if _UV_NLM_PYTHON.exists():
+                    cmd = [
+                        str(_UV_NLM_PYTHON), "-c",
+                        "import sys; sys.stdout.reconfigure(encoding='utf-8'); sys.stderr.reconfigure(encoding='utf-8'); from notebooklm_tools.cli.main import cli_main; cli_main()",
+                        "login"
+                    ]
+                else:
+                    cmd = ["nlm", "login"]
+                
+                # We need to show window so user can interact if there are prompts, 
+                # but nlm login usually opens the browser directly.
+                env = __import__("os").environ.copy()
+                env["PYTHONUTF8"] = "1"
+                env["PYTHONIOENCODING"] = "utf-8"
+                
+                logger.info("[NLM] Running login command...")
+                result = subprocess.run(
+                    cmd, 
+                    capture_output=True, 
+                    text=True, 
+                    encoding='utf-8', 
+                    env=env,
+                    # CREATE_NO_WINDOW so terminal doesn't pop up briefly, since browser will open
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                
+                # Check if it succeeded
+                if result.returncode == 0 or "Authenticating profile" in result.stdout or "Authentication Error" not in result.stderr:
+                     self.after(0, lambda: self._show_toast("Đăng nhập NotebookLM thành công!", "success"))
+                else:
+                     logger.error("[NLM] Login failed: %s %s", result.stdout, result.stderr)
+                     self.after(0, lambda: self._show_toast("Đăng nhập NotebookLM thất bại. Vui lòng thử lại.", "error"))
 
-    def _fetch_nlm_notebooks(self):
-        def _fetch():
-            nbs, err = self._sync._nlm_worker.get_notebooks()
-            if nbs:
-                # If we successfully fetch notebooks, we are clearly logged in
-                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
-            self.after(0, lambda: self._main_frame.set_nlm_notebooks(nbs, err))
-        threading.Thread(target=_fetch, daemon=True).start()
+            except Exception as exc:
+                logger.error("[NLM] Login error: %s", exc)
+                self.after(0, lambda: self._show_toast(f"Lỗi đăng nhập NLM: {exc}", "error"))
 
-    def _fetch_nlm_sources(self, nb_id: str):
-        def _fetch():
-            srcs, err = self._sync._nlm_worker.get_sources(nb_id)
-            self.after(0, lambda: self._main_frame.set_nlm_sources(srcs, err))
-        threading.Thread(target=_fetch, daemon=True).start()
+        thread = threading.Thread(target=_do_login, daemon=True)
+        thread.start()
 
     # ═══════════════════════════════════════════
     # FOLDER

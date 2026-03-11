@@ -1,18 +1,17 @@
 {
-    "updated_at": "2026-03-11T01:38:00Z",
+    "updated_at": "2026-03-11T02:40:00Z",
     "working_on": {
-        "feature": "Extension Login Sync Flow",
-        "task": "Fix oauth_token extraction and auto-sending mechanism without mandatory email requirement",
-        "status": "completed",
+        "feature": "UI Refactor Phase 01: Apple Light Theme",
+        "task": "Render Dashboard Sidebar + Content",
+        "status": "running",
+        "last_run": "2026-03-11T02:40:00Z",
         "files": [
-            "extension/background.js",
-            "extension/manifest.json",
-            "token_server.py",
-            "app.py",
-            "docs/PRD.md"
+            "ui/main_frame.py",
+            "ui/login_frame.py",
+            "app.py"
         ],
         "blockers": [],
-        "notes": "Trình duyệt rỗng Chrome Profile email, Extension giờ pass token trực tiếp về App để App tự ghép email."
+        "notes": "Đã đổi Theme, chỉnh layout Login card và chuyển Nút Sync xuống Sidebar phía trên nút Logout."
     },
     "pending_tasks": [
         {

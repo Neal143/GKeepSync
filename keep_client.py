@@ -23,18 +23,36 @@ class KeepClient:
 
     def login(self, email: str, token_or_password: str) -> tuple[bool, str]:
         """
-        Login with email + master token OR app password.
+        Smart Login: auto-detect App Password, Master Token, or OAuth Token.
         Returns (success: bool, message: str)
         """
         try:
-            token_or_password = token_or_password.replace(" ", "")
-            master_token = token_or_password
+            token = token_or_password.replace(" ", "").strip()
+            master_token = token
 
-            if not token_or_password.startswith("aas_et/"):
-                # It's an app password, exchange it for a master token
-                import hashlib
-                android_id = hashlib.md5(email.encode()).hexdigest()[:16]
-                result = gpsoauth.perform_master_login(email, token_or_password, android_id)
+            import hashlib
+            android_id = hashlib.sha1(email.encode()).hexdigest()[:16]
+
+            if token.startswith("oauth2_"):
+                # --- OAuth Token (cookie from browser) ---
+                # Must exchange for master token first
+                import gpsoauth
+                result = gpsoauth.exchange_token(email, token, android_id)
+                if "Token" not in result:
+                    self._logged_in = False
+                    error_msg = result.get("Error", str(result))
+                    return False, f"Google từ chối OAuth Token: {error_msg}"
+                master_token = result["Token"]
+
+            elif token.startswith("aas_et/") or len(token) > 50:
+                # --- Master Token (long string, may or may not have aas_et/ prefix) ---
+                # Use directly, do NOT encrypt with RSA
+                master_token = token
+
+            else:
+                # --- App Password (short, 16-char style) ---
+                import gpsoauth
+                result = gpsoauth.perform_master_login(email, token, android_id)
                 if "Token" not in result:
                     self._logged_in = False
                     return False, "Sai Email hoặc App Password!"
@@ -42,6 +60,8 @@ class KeepClient:
 
             self._keep.authenticate(email, master_token)
             self._email = email
+            # We need to expose master_token for _on_extension_token
+            self._master_token = master_token 
             self._logged_in = True
             return True, "Đăng nhập thành công!"
         except gkeepapi.exception.LoginException as e:
@@ -50,6 +70,10 @@ class KeepClient:
         except Exception as e:
             self._logged_in = False
             return False, f"Lỗi không xác định: {e}"
+            
+    def get_master_token(self) -> Optional[str]:
+        """Return the current active master token if logged in."""
+        return getattr(self, "_master_token", None) if self._logged_in else None
 
     def resume(self, email: str, master_token: str) -> tuple[bool, str]:
         """

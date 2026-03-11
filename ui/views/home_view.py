@@ -22,41 +22,47 @@ class HomeView(ctk.CTkFrame):
         row += 1
 
         # --- Output Folder ---
-        folder_frame = ctk.CTkFrame(self)
-        folder_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(8, 4))
+        folder_frame = ctk.CTkFrame(self, fg_color="#F5F5F7", corner_radius=12)
+        folder_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(8, 12))
         folder_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            folder_frame, text="📁 Thư mục lưu:", font=ctk.CTkFont(size=13)
-        ).grid(row=0, column=0, padx=(12, 8), pady=12)
+            folder_frame, text="📁 Thư mục lưu:", font=ctk.CTkFont(size=14, weight="bold"), text_color="#1C1C1E"
+        ).grid(row=0, column=0, padx=(16, 8), pady=16)
 
         self._folder_entry = ctk.CTkEntry(
             folder_frame,
             textvariable=folder_var,
-            height=32,
-            font=ctk.CTkFont(size=12),
+            height=36,
+            font=ctk.CTkFont(size=13),
             state="disabled",
+            fg_color="#FFFFFF",
+            border_color="#D1D1D6"
         )
         self._folder_entry.grid(row=0, column=1, sticky="ew", padx=(0, 8))
 
         ctk.CTkButton(
             folder_frame,
             text="Browse",
-            width=70,
-            height=32,
-            font=ctk.CTkFont(size=12),
+            width=80,
+            height=36,
+            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#007AFF",
+            text_color="#FFFFFF",
+            hover_color="#0056B3",
             command=on_browse_folder,
-        ).grid(row=0, column=2, padx=(0, 12))
+        ).grid(row=0, column=2, padx=(0, 16))
 
         row += 1
 
         # --- Auto Sync ---
-        auto_frame = ctk.CTkFrame(self)
-        auto_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(4, 8))
+        auto_frame = ctk.CTkFrame(self, fg_color="#F5F5F7", corner_radius=12)
+        auto_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(4, 12))
 
         ctk.CTkLabel(
-            auto_frame, text="⏰ Auto Sync:", font=ctk.CTkFont(size=13)
-        ).grid(row=0, column=0, padx=(12, 8), pady=12)
+            auto_frame, text="⏰ Auto Sync:", font=ctk.CTkFont(size=14, weight="bold"), text_color="#1C1C1E"
+        ).grid(row=0, column=0, padx=(16, 8), pady=16)
 
         self._interval_dropdown = ctk.CTkOptionMenu(
             auto_frame,

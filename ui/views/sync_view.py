@@ -28,16 +28,20 @@ class SyncView(ctk.CTkFrame):
         self.keep_log_scroll = ctk.CTkScrollableFrame(
             log_container,
             label_text="📝 Google Keep Log",
-            label_font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color=("gray95", "gray15"),
+            label_font=ctk.CTkFont(size=13, weight="bold"),
+            label_text_color="#1C1C1E",
+            fg_color="#F5F5F7",
+            corner_radius=12
         )
-        self.keep_log_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        self.keep_log_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
         # NLM Log
         self.nlm_log_scroll = ctk.CTkScrollableFrame(
             log_container,
             label_text="📓 NotebookLM Log",
-            label_font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color=("gray95", "gray15"),
+            label_font=ctk.CTkFont(size=13, weight="bold"),
+            label_text_color="#1C1C1E",
+            fg_color="#F5F5F7",
+            corner_radius=12
         )
-        self.nlm_log_scroll.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        self.nlm_log_scroll.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
