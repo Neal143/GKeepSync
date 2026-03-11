@@ -34,6 +34,11 @@ class GKeepSyncApp(ctk.CTk):
         self._sync.on_sync_progress = self._on_sync_progress
         self._sync.on_sync_complete = self._on_sync_complete
         self._sync.on_sync_error = self._on_sync_error
+        self._sync.on_sync_log = self._on_sync_log
+        
+        # Wire NLMWorker callbacks to update the UI Log
+        self._sync._nlm_worker.on_upload_success = self._on_nlm_success
+        self._sync._nlm_worker.on_upload_error = self._on_nlm_error
 
         # Start token receiver server (for Chrome Extension)
         self._token_server = TokenServer(
@@ -71,6 +76,14 @@ class GKeepSyncApp(ctk.CTk):
             on_folder_change=self._handle_folder_change,
             on_logout=self._handle_logout,
         )
+        self._main_frame.on_filter_change = self._fetch_and_display_notes
+        
+        # Wire NLM Callbacks
+        self._main_frame._on_nlm_login = self._handle_nlm_login
+        self._main_frame._on_nlm_toggle = self._handle_nlm_toggle
+        self._main_frame._on_nlm_id_change = self._handle_nlm_id_change
+        self._main_frame._on_nlm_fetch_notebooks = self._handle_nlm_fetch_notebooks
+        self._main_frame._on_nlm_fetch_sources = self._handle_nlm_fetch_sources
 
         # Check for saved credentials
         if self._config.has_credentials:
@@ -127,6 +140,38 @@ class GKeepSyncApp(ctk.CTk):
         nlm_id = self._config.get("nlm_notebook_id", "")
         if nlm_id:
             self._main_frame._nlm_id_var.set(nlm_id)
+
+        # Fetch initial notes for the Keep tab
+        self._fetch_and_display_notes()
+
+    def _fetch_and_display_notes(self):
+        """Fetch notes based on current filters and update UI."""
+        # Visual feedback during loading
+        for widget in self._main_frame.keep_view.notes_scroll.winfo_children():
+            widget.destroy()
+        
+        from customtkinter import CTkLabel, CTkFont
+        CTkLabel(
+            self._main_frame.keep_view.notes_scroll,
+            text="⏳ Đang tải ghi chú từ Google Keep...",
+            text_color="#8E8E93",
+            font=CTkFont(size=14)
+        ).grid(row=0, column=0, columnspan=3, pady=60)
+
+        labels = self._main_frame.get_selected_labels()
+        date_from = self._main_frame.get_date_from()
+        date_to = self._main_frame.get_date_to()
+
+        def _fetch():
+            try:
+                notes = self._keep.get_notes(labels=labels, date_from=date_from, date_to=date_to)
+                self.after(0, lambda: self._main_frame.update_notes_list(notes))
+            except Exception as e:
+                logger.error("Error fetching notes: %s", e)
+                self.after(0, lambda: self._main_frame.update_notes_list([]))
+        
+        thread = threading.Thread(target=_fetch, daemon=True)
+        thread.start()
 
     # ═══════════════════════════════════════════
     # LOGIN
@@ -245,6 +290,25 @@ class GKeepSyncApp(ctk.CTk):
             lambda t=title, c=current, tot=total:
                 self._main_frame.update_progress(f"📝 {t}", c, tot),
         )
+
+    def _on_sync_log(self, title: str, status: str, msg: str):
+        from datetime import datetime
+        now_str = datetime.now().strftime("%H:%M:%S")
+        self.after(
+            0,
+            lambda t=title, s=status, m=msg, d=now_str:
+                self._main_frame.append_keep_log(t, s, m, d)
+        )
+
+    def _on_nlm_success(self, filename: str):
+        from datetime import datetime
+        now_str = datetime.now().strftime("%H:%M:%S")
+        self.after(0, lambda: self._main_frame.append_nlm_log(filename, "success", "Upload OK", now_str))
+        
+    def _on_nlm_error(self, msg: str):
+        from datetime import datetime
+        now_str = datetime.now().strftime("%H:%M:%S")
+        self.after(0, lambda: self._main_frame.append_nlm_log("NLM Worker", "error", msg, now_str))
 
     def _on_sync_complete(self, synced: int, total: int, msg: str):
         logger.info("Sync complete: %s", msg)
@@ -365,8 +429,88 @@ class GKeepSyncApp(ctk.CTk):
             except Exception as exc:
                 logger.error("[NLM] Login error: %s", exc)
                 self.after(0, lambda: self._show_toast(f"Lỗi đăng nhập NLM: {exc}", "error"))
+            finally:
+                # Always restore button state
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
 
         thread = threading.Thread(target=_do_login, daemon=True)
+        thread.start()
+
+    def _handle_nlm_fetch_notebooks(self):
+        self._show_toast("Đang tải danh sách Notebooks...", "info")
+        def _do_fetch():
+            from utils.nlm_worker import _UV_NLM_PYTHON
+            import subprocess
+            import json
+            try:
+                if _UV_NLM_PYTHON.exists():
+                    cmd = [str(_UV_NLM_PYTHON), "-c", "from notebooklm_tools.cli.main import cli_main; cli_main()", "list", "notebooks", "--json"]
+                else:
+                    cmd = ["nlm", "list", "notebooks", "--json"]
+                
+                env = __import__("os").environ.copy()
+                env["PYTHONUTF8"] = "1"
+                env["PYTHONIOENCODING"] = "utf-8"
+                
+                res = subprocess.run(
+                    cmd, capture_output=True, text=True, encoding='utf-8', env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                if res.returncode == 0:
+                    try:
+                        data = json.loads(res.stdout)
+                        if not isinstance(data, list):
+                            data = [data]
+                    except json.JSONDecodeError:
+                        data = []
+                    self.after(0, lambda: self._main_frame.set_nlm_notebooks(data))
+                else:
+                    logger.error("NLM Fetch Error: %s %s", res.stdout, res.stderr)
+                    self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error="Lỗi khi tải notebooks. Xem chi tiết trong log."))
+            except Exception as e:
+                logger.error("NLM Exception: %s", e)
+                self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error=str(e)))
+                
+        thread = threading.Thread(target=_do_fetch, daemon=True)
+        thread.start()
+
+    def _handle_nlm_fetch_sources(self, nb_id: str):
+        def _do_fetch():
+            from utils.nlm_worker import _UV_NLM_PYTHON
+            import subprocess
+            import json
+            try:
+                if _UV_NLM_PYTHON.exists():
+                    cmd = [str(_UV_NLM_PYTHON), "-c", "from notebooklm_tools.cli.main import cli_main; cli_main()", "list", "sources", nb_id, "--json"]
+                else:
+                    cmd = ["nlm", "list", "sources", nb_id, "--json"]
+                
+                env = __import__("os").environ.copy()
+                env["PYTHONUTF8"] = "1"
+                env["PYTHONIOENCODING"] = "utf-8"
+                
+                res = subprocess.run(
+                    cmd, capture_output=True, text=True, encoding='utf-8', env=env,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                if res.returncode == 0:
+                    try:
+                        data = json.loads(res.stdout)
+                        if not isinstance(data, list):
+                            data = [data]
+                    except json.JSONDecodeError:
+                        data = []
+                    self.after(0, lambda: self._main_frame.set_nlm_sources(data))
+                else:
+                    logger.error("NLM Fetch Sources Error: %s %s", res.stdout, res.stderr)
+                    self.after(0, lambda: self._main_frame.set_nlm_sources([], error="Lỗi khi tải sources."))
+            except Exception as e:
+                logger.error("NLM Sources Exception: %s", e)
+                self.after(0, lambda: self._main_frame.set_nlm_sources([], error=str(e)))
+                
+        thread = threading.Thread(target=_do_fetch, daemon=True)
         thread.start()
 
     # ═══════════════════════════════════════════
