@@ -16,7 +16,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
     """Handles incoming token POST from Chrome Extension."""
 
     # Shared callback - set by TokenServer
-    on_token_received: Optional[Callable[[str, str], Optional[str]]] = None
+    on_token_received: Optional[Callable[[str, str], Optional[tuple[str, str]]]] = None
 
     def do_POST(self):
         if self.path == "/token":
@@ -32,15 +32,19 @@ class _TokenHandler(BaseHTTPRequestHandler):
 
                     # Notify the app and wait for the resulting master token
                     master_token = None
+                    resolved_email = email
                     if _TokenHandler.on_token_received:
-                        # Modified callback: it should return the new master_token (str) on success
-                        master_token = _TokenHandler.on_token_received(email, oauth_token)
+                        # Modified callback: it should return the new (master_token, resolved_email) on success
+                        result = _TokenHandler.on_token_received(email, oauth_token)
+                        if result:
+                            master_token, resolved_email = result
 
                     if master_token:
                         self._send_json(200, {
                             "status": "ok", 
                             "message": "Token received & exchanged successfully!",
-                            "master_token": master_token
+                            "master_token": master_token,
+                            "email": resolved_email
                         })
                     else:
                         self._send_json(401, {
@@ -82,7 +86,7 @@ class _TokenHandler(BaseHTTPRequestHandler):
 class TokenServer:
     """Localhost server that receives email and oauth_token from Chrome Extension."""
 
-    def __init__(self, on_token_received: Optional[Callable[[str, str], Optional[str]]] = None):
+    def __init__(self, on_token_received: Optional[Callable[[str, str], Optional[tuple[str, str]]]] = None):
         self._server = None
         self._thread = None
         _TokenHandler.on_token_received = on_token_received

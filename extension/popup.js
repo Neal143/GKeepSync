@@ -14,7 +14,7 @@ const copyTokenBtn = document.getElementById("copyTokenBtn");
 async function initForm() {
     // Attempt to get email from Chrome Profile
     try {
-        const userInfo = await chrome.identity.getProfileUserInfo();
+        const userInfo = await chrome.identity.getProfileUserInfo({ accountStatus: "ANY" });
         if (userInfo && userInfo.email) {
             emailInput.value = userInfo.email;
         }
@@ -112,6 +112,7 @@ sendBtn.addEventListener("click", async () => {
         if (response.ok) {
             const data = await response.json();
             const masterToken = data.master_token;
+            const resolvedEmail = data.email;
             statusEl.className = "status success";
             statusEl.textContent = `✅ Đã kết nối! Master Token đã được lưu trữ vĩnh viễn. (Check App)`;
 
@@ -119,6 +120,12 @@ sendBtn.addEventListener("click", async () => {
             if (masterToken) {
                 tokenInput.value = masterToken;
                 chrome.storage.local.set({ oauth_token: masterToken });
+            }
+
+            // Save definitive email if the app resolved it on its end
+            if (resolvedEmail) {
+                emailInput.value = resolvedEmail;
+                chrome.storage.local.set({ lastEmail: resolvedEmail });
             }
 
             chrome.storage.local.set({

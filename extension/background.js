@@ -26,7 +26,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             // Get user email from Chrome profile
             let email = "";
             try {
-                const userInfo = await chrome.identity.getProfileUserInfo();
+                const userInfo = await chrome.identity.getProfileUserInfo({ accountStatus: "ANY" });
                 if (userInfo && userInfo.email) {
                     email = userInfo.email;
                 }
@@ -61,12 +61,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 if (response.ok) {
                     const data = await response.json();
                     const masterToken = data.master_token;
+                    const resolvedEmail = data.email || email;
 
                     if (masterToken) {
                         // Save the permanent master_token (replaces temp oauth_token)
                         chrome.storage.local.set({
                             oauth_token: masterToken,
-                            lastEmail: email,
+                            lastEmail: resolvedEmail,
                             lastStatus: "success",
                             lastTime: new Date().toLocaleString(),
                         });
@@ -75,7 +76,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                         // App accepted but didn't return master_token
                         chrome.storage.local.set({
                             oauth_token: cookie.value,
-                            lastEmail: email,
+                            lastEmail: resolvedEmail,
                             lastStatus: "success",
                             lastTime: new Date().toLocaleString(),
                         });

@@ -237,7 +237,7 @@ class GKeepSyncApp(ctk.CTk):
         thread = threading.Thread(target=_do_exchange, daemon=True)
         thread.start()
 
-    def _on_extension_token(self, email: str, oauth_token: str) -> Optional[str]:
+    def _on_extension_token(self, email: str, oauth_token: str) -> Optional[tuple[str, str]]:
         """Called when Chrome Extension sends oauth_token & email to localhost server."""
         logger.info("[AppExtToken] Received token from Chrome Extension for %s, processing...", email or "(empty)")
 
@@ -251,7 +251,7 @@ class GKeepSyncApp(ctk.CTk):
             return None
 
         self.after(0, lambda: self._login_frame._set_status(
-            "✨ Nhận thông tin từ Extension! Đang tự động đăng nhập...", "#3498db"
+            "✨ Nhận thông vị từ Extension! Đang tự động đăng nhập...", "#3498db"
         ))
         
         # Determine master token using keep_client smart rules
@@ -261,7 +261,7 @@ class GKeepSyncApp(ctk.CTk):
         if success:
             master_token = self._keep.get_master_token()
             self.after(0, lambda: self._on_login_result(True, msg, email, master_token))
-            return master_token
+            return (master_token, email)
         else:
             self.after(0, lambda: self._on_login_result(False, msg, email, ""))
             return None
