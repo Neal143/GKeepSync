@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from typing import Callable
+from ui.themes.colors import MaterialColors
 
 class NLMView(ctk.CTkFrame):
     def __init__(
@@ -13,107 +14,137 @@ class NLMView(ctk.CTkFrame):
         **kwargs
     ):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
+        
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(2, weight=1)  # Make lists stretch
 
-        row = 0
-        ctk.CTkLabel(
-            self, text="📓 NotebookLM", font=ctk.CTkFont(size=20, weight="bold")
-        ).grid(row=row, column=0, padx=20, pady=(20, 10), sticky="w")
-        row += 1
-
-        # NLM Controls
-        nlm_ctrl = ctk.CTkFrame(self, fg_color="#F5F5F7", corner_radius=12)
-        nlm_ctrl.grid(row=row, column=0, sticky="ew", padx=20, pady=(0, 12))
+        # --- Header ---
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        header_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
-            nlm_ctrl, text="📓 NotebookLM:", font=ctk.CTkFont(size=14, weight="bold"), text_color="#1C1C1E"
-        ).pack(side="left", padx=(16, 8), pady=16)
+            header_frame, text="📓 NotebookLM", font=ctk.CTkFont(size=24, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=0, sticky="w")
 
-        self.nlm_switch = ctk.CTkSwitch(
-            nlm_ctrl,
-            text="Sync",
-            font=ctk.CTkFont(size=13),
-            command=on_nlm_toggle,
-            width=60,
+        self.nlm_login_btn = ctk.CTkButton(
+            header_frame,
+            text="Đăng nhập NLM",
+            height=32,
+            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=MaterialColors.PRIMARY,
+            text_color="#FFFFFF",
+            hover_color=MaterialColors.PRIMARY_HOVER,
+            command=on_nlm_login
         )
-        self.nlm_switch.pack(side="left", padx=(0, 8))
+        self.nlm_login_btn.grid(row=0, column=1, sticky="e")
+
+        # --- Settings Panel ---
+        self._build_top_panel(
+            nlm_id_var,
+            on_nlm_toggle,
+            on_nlm_id_change
+        )
+
+        # --- Lists Panel ---
+        self._build_lists_panel(on_nlm_fetch_notebooks)
+
+    def _build_top_panel(self, nlm_id_var, on_toggle, on_id_change):
+        panel = ctk.CTkFrame(self, fg_color="transparent")
+        panel.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 10))
+        panel.grid_columnconfigure(0, weight=1)
+
+        # Settings Card
+        settings_card = ctk.CTkFrame(panel, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
+        settings_card.grid(row=0, column=0, sticky="nsew")
+        settings_card.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            nlm_ctrl, text="Notebook ID:", font=ctk.CTkFont(size=12), text_color="#8E8E93"
-        ).pack(side="left", padx=(16, 4))
+            settings_card, text="⚙️ Cài đặt đồng bộ NLM", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=0, columnspan=2, padx=16, pady=(16, 8), sticky="w")
+
+        # Row 1: Notebook ID Label and Entry
+        nb_id_frame = ctk.CTkFrame(settings_card, fg_color="transparent")
+        nb_id_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=(0, 8))
+        nb_id_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            nb_id_frame, text="Notebook ID:", font=ctk.CTkFont(size=13), text_color=MaterialColors.TEXT_MUTED
+        ).grid(row=0, column=0, padx=(0, 8), sticky="w")
 
         self.nlm_id_entry = ctk.CTkEntry(
-            nlm_ctrl,
+            nb_id_frame,
             textvariable=nlm_id_var,
-            height=36,
-            width=220,
-            corner_radius=8,
-            placeholder_text="Paste notebook ID here",
-            font=ctk.CTkFont(size=12),
-            fg_color="#FFFFFF",
-            border_color="#D1D1D6"
+            height=32,
+            font=ctk.CTkFont(size=13),
+            fg_color=MaterialColors.BG_CONTENT,
+            text_color=MaterialColors.TEXT_MAIN,
+            border_color=MaterialColors.BORDER_INPUT
         )
-        self.nlm_id_entry.pack(side="left", padx=(0, 16))
-        self.nlm_id_entry.bind("<FocusOut>", lambda e: on_nlm_id_change())
+        self.nlm_id_entry.grid(row=0, column=1, sticky="ew")
+        self.nlm_id_entry.bind("<FocusOut>", lambda e: on_id_change())
+        self.nlm_id_entry.bind("<Return>", lambda e: on_id_change())
 
-        # Login button
-        self.nlm_login_btn = ctk.CTkButton(
-            nlm_ctrl,
-            text="Đăng nhập NLM",
-            width=120,
-            height=36,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            command=on_nlm_login,
-            fg_color="#007AFF",
-            hover_color="#0056B3",
-            text_color="#FFFFFF"
+        # Row 2: Switch
+        self.nlm_switch = ctk.CTkSwitch(
+            settings_card,
+            text="Tự động Upload",
+            font=ctk.CTkFont(size=13),
+            text_color=MaterialColors.TEXT_MAIN,
+            progress_color=MaterialColors.PRIMARY,
+            command=on_toggle
         )
-        self.nlm_login_btn.pack(side="left", padx=(0, 12))
+        self.nlm_switch.grid(row=2, column=0, columnspan=2, padx=16, pady=(0, 16), sticky="w")
 
-        # Fetch Notebooks button
+
+    def _build_lists_panel(self, on_fetch):
+        panel = ctk.CTkFrame(self, fg_color="transparent")
+        panel.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        panel.grid_columnconfigure(0, weight=1)
+        panel.grid_columnconfigure(1, weight=1)
+        panel.grid_rowconfigure(1, weight=1)
+
+        # Left Header
+        left_header = ctk.CTkFrame(panel, fg_color="transparent")
+        left_header.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 8))
+        left_header.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(
+            left_header, text="📚 My Notebooks", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=0, sticky="w")
+
         self.fetch_nb_btn = ctk.CTkButton(
-            nlm_ctrl,
+            left_header,
             text="Tải Notebooks",
-            width=120,
-            height=36,
-            corner_radius=8,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#34C759",
-            hover_color="#28A745",
-            text_color="#FFFFFF",
-            command=on_nlm_fetch_notebooks
+            height=28,
+            corner_radius=6,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=MaterialColors.BG_CONTENT,
+            text_color=MaterialColors.TEXT_MAIN,
+            hover_color=MaterialColors.BORDER_LIGHT,
+            border_width=1,
+            border_color=MaterialColors.BORDER_LIGHT,
+            command=on_fetch
         )
-        self.fetch_nb_btn.pack(side="left", padx=(0, 16))
+        self.fetch_nb_btn.grid(row=0, column=1, sticky="e")
 
-        # Content area (Browser 2 col)
-        content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        content_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(4, 20))
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_columnconfigure(1, weight=1)
-        content_frame.grid_rowconfigure(0, weight=1)
+        # Right Header
+        ctk.CTkLabel(
+            panel, text="📄 Sources in Notebook", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=1, padx=(10, 0), pady=(0, 8), sticky="w")
 
-        # Left: Notebooks
+        # Scrolls
         self.nb_scroll = ctk.CTkScrollableFrame(
-            content_frame, 
-            label_text="📚 My Notebooks", 
-            label_font=ctk.CTkFont(size=14, weight="bold"),
-            label_text_color="#1C1C1E",
-            fg_color="#F5F5F7",
-            corner_radius=12
+            panel, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT
         )
-        self.nb_scroll.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        self.nb_scroll.grid_columnconfigure(0, weight=1)
-
-        # Right: Sources
+        self.nb_scroll.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
+        
         self.src_scroll = ctk.CTkScrollableFrame(
-            content_frame, 
-            label_text="📄 Sources", 
-            label_font=ctk.CTkFont(size=14, weight="bold"),
-            label_text_color="#1C1C1E",
-            fg_color="#F5F5F7",
-            corner_radius=12
+            panel, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT
         )
-        self.src_scroll.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
-        self.src_scroll.grid_columnconfigure(0, weight=1)
+        self.src_scroll.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
+
+        # Initial placeholder text
+        ctk.CTkLabel(self.nb_scroll, text="Bấm 'Tải Notebooks' để bắt đầu", text_color=MaterialColors.TEXT_MUTED).pack(pady=40)
+        ctk.CTkLabel(self.src_scroll, text="Chọn một Notebook để xem Sources", text_color=MaterialColors.TEXT_MUTED).pack(pady=40)

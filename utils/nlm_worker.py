@@ -275,6 +275,14 @@ class NLMWorker:
             return False, str(e)
 
     @staticmethod
+    def check_auth_status() -> bool:
+        """Check if already authenticated to NLM implicitly by fetching notebooks."""
+        res = NLMWorker._run_nlm(["nlm", "notebook", "list", "--json"])
+        if res and res.returncode == 0:
+            return True
+        return False
+
+    @staticmethod
     def get_notebooks() -> tuple[list[dict], Optional[str]]:
         """Fetch all notebooks using `nlm notebook list --json`."""
         res = NLMWorker._run_nlm(["nlm", "notebook", "list", "--json"])

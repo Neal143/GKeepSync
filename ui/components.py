@@ -6,6 +6,7 @@ Date picker, status bar, notification toast.
 import customtkinter as ctk
 from datetime import datetime, date
 from typing import Callable, Optional
+from ui.themes.colors import MaterialColors
 
 
 class DateEntry(ctk.CTkFrame):
@@ -20,6 +21,9 @@ class DateEntry(ctk.CTkFrame):
             width=130,
             height=32,
             font=ctk.CTkFont(size=13),
+            fg_color=MaterialColors.BG_CARD,
+            border_color=MaterialColors.BORDER_INPUT,
+            text_color=MaterialColors.TEXT_MAIN
         )
         self._entry.pack(side="left")
 
@@ -42,15 +46,17 @@ class DateEntry(ctk.CTkFrame):
 
 
 class StatusBar(ctk.CTkFrame):
-    """Bottom status bar showing sync info."""
+    """Bottom status bar showing application info."""
 
     def __init__(self, master, **kwargs):
-        super().__init__(master, height=36, corner_radius=0, **kwargs)
+        # Using a slight grey background for the generic status bar
+        super().__init__(master, height=36, corner_radius=0, fg_color=MaterialColors.BG_CONTENT, border_width=1, border_color=MaterialColors.BORDER_LIGHT, **kwargs)
 
         self._status_label = ctk.CTkLabel(
             self,
             text="Chưa kết nối",
             font=ctk.CTkFont(size=12),
+            text_color=MaterialColors.TEXT_MAIN,
             anchor="w",
         )
         self._status_label.pack(side="left", padx=12, pady=4)
@@ -59,6 +65,7 @@ class StatusBar(ctk.CTkFrame):
             self,
             text="",
             font=ctk.CTkFont(size=12),
+            text_color=MaterialColors.TEXT_MUTED,
             anchor="e",
         )
         self._sync_label.pack(side="right", padx=12, pady=4)
@@ -71,21 +78,22 @@ class StatusBar(ctk.CTkFrame):
 
 
 class NotificationToast(ctk.CTkFrame):
-    """Floating notification toast."""
+    """Floating notification toast using MaterialColors."""
 
-    def __init__(self, master, message: str, toast_type: str = "info", duration: int = 3000):
+    def __init__(self, master, message: str, toast_type: str = "info", duration: int = 4000):
         colors = {
-            "success": ("#2ecc71", "#27ae60"),
-            "error": ("#e74c3c", "#c0392b"),
-            "info": ("#3498db", "#2980b9"),
-            "warning": ("#f39c12", "#e67e22"),
+            "success": MaterialColors.SUCCESS,
+            "error": MaterialColors.ERROR,
+            "info": MaterialColors.PRIMARY,
+            "warning": "#f39c12", # Hardcoded warning if needed, though rarely used in Apple design
         }
         fg = colors.get(toast_type, colors["info"])
 
         super().__init__(
             master,
-            fg_color=fg[0] if ctk.get_appearance_mode() == "Light" else fg[1],
+            fg_color=fg,
             corner_radius=8,
+            border_width=0
         )
 
         icons = {"success": "✅", "error": "❌", "info": "ℹ️", "warning": "⚠️"}
@@ -94,8 +102,8 @@ class NotificationToast(ctk.CTkFrame):
             self,
             text=f" {icons.get(toast_type, 'ℹ️')}  {message}",
             font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="white",
-        ).pack(padx=16, pady=8)
+            text_color="#FFFFFF",
+        ).pack(padx=20, pady=12)
 
         # Auto-dismiss
         self.after(duration, self._dismiss)
@@ -114,11 +122,17 @@ class SyncProgressBar(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent", **kwargs)
 
         self._label = ctk.CTkLabel(
-            self, text="", font=ctk.CTkFont(size=12), anchor="w"
+            self, text="", font=ctk.CTkFont(size=12), text_color=MaterialColors.TEXT_MAIN, anchor="w"
         )
         self._label.pack(fill="x", padx=4, pady=(4, 0))
 
-        self._bar = ctk.CTkProgressBar(self, height=6, corner_radius=3)
+        self._bar = ctk.CTkProgressBar(
+            self, 
+            height=6, 
+            corner_radius=3,
+            progress_color=MaterialColors.PRIMARY,
+            fg_color=MaterialColors.BORDER_LIGHT
+        )
         self._bar.pack(fill="x", padx=4, pady=(2, 4))
         self._bar.set(0)
 

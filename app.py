@@ -52,7 +52,7 @@ class GKeepSyncApp(ctk.CTk):
         self.minsize(750, 550)
 
         # Appearance
-        ctk.set_appearance_mode("dark")
+        ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
 
         # Handle close
@@ -126,17 +126,12 @@ class GKeepSyncApp(ctk.CTk):
         # Pre-fill NotebookLM settings
         # Set states
         if getattr(self._main_frame, 'home_view', None):
-            if self._config.get("auto_sync_enabled"):
-                try:
-                    self._main_frame.home_view._auto_sync_switch.select()
-                except AttributeError:
-                    pass
+            if self._config.get("auto_sync_enabled") and hasattr(self._main_frame.home_view, '_auto_sync_switch'):
+                self._main_frame.home_view._auto_sync_switch.select()
 
-            if self._config.get("nlm_sync_enabled"):
-                try:
-                    self._main_frame.nlm_view.nlm_switch.select()
-                except AttributeError:
-                    pass
+            if self._config.get("nlm_sync_enabled") and hasattr(self._main_frame.nlm_view, 'nlm_switch'):
+                self._main_frame.nlm_view.nlm_switch.select()
+                
         nlm_id = self._config.get("nlm_notebook_id", "")
         if nlm_id:
             self._main_frame._nlm_id_var.set(nlm_id)
@@ -144,19 +139,32 @@ class GKeepSyncApp(ctk.CTk):
         # Fetch initial notes for the Keep tab
         self._fetch_and_display_notes()
 
+        # Check NLM Auth asynchronously
+        self._check_nlm_auth()
+
+    def _check_nlm_auth(self):
+        def _do_check():
+            from utils.nlm_worker import NLMWorker
+            if NLMWorker.check_auth_status():
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
+        
+        thread = threading.Thread(target=_do_check, daemon=True)
+        thread.start()
+
     def _fetch_and_display_notes(self):
         """Fetch notes based on current filters and update UI."""
         # Visual feedback during loading
-        for widget in self._main_frame.keep_view.notes_scroll.winfo_children():
-            widget.destroy()
-        
-        from customtkinter import CTkLabel, CTkFont
-        CTkLabel(
-            self._main_frame.keep_view.notes_scroll,
-            text="⏳ Đang tải ghi chú từ Google Keep...",
-            text_color="#8E8E93",
-            font=CTkFont(size=14)
-        ).grid(row=0, column=0, columnspan=3, pady=60)
+        if hasattr(self._main_frame, 'keep_view') and hasattr(self._main_frame.keep_view, 'notes_scroll'):
+            for widget in self._main_frame.keep_view.notes_scroll.winfo_children():
+                widget.destroy()
+            
+            from customtkinter import CTkLabel, CTkFont
+            CTkLabel(
+                self._main_frame.keep_view.notes_scroll,
+                text="⏳ Đang tải ghi chú từ Google Keep...",
+                text_color="#8E8E93",
+                font=CTkFont(size=14)
+            ).grid(row=0, column=0, columnspan=3, pady=60)
 
         labels = self._main_frame.get_selected_labels()
         date_from = self._main_frame.get_date_from()
@@ -389,49 +397,15 @@ class GKeepSyncApp(ctk.CTk):
         self._show_toast("Đang mở trình duyệt để đăng nhập NotebookLM...", "info")
         
         def _do_login():
-            import subprocess
-            from utils.nlm_worker import _UV_NLM_PYTHON
-            try:
-                # Build command to run nlm login
-                if _UV_NLM_PYTHON.exists():
-                    cmd = [
-                        str(_UV_NLM_PYTHON), "-c",
-                        "import sys; sys.stdout.reconfigure(encoding='utf-8'); sys.stderr.reconfigure(encoding='utf-8'); from notebooklm_tools.cli.main import cli_main; cli_main()",
-                        "login"
-                    ]
-                else:
-                    cmd = ["nlm", "login"]
-                
-                # We need to show window so user can interact if there are prompts, 
-                # but nlm login usually opens the browser directly.
-                env = __import__("os").environ.copy()
-                env["PYTHONUTF8"] = "1"
-                env["PYTHONIOENCODING"] = "utf-8"
-                
-                logger.info("[NLM] Running login command...")
-                result = subprocess.run(
-                    cmd, 
-                    capture_output=True, 
-                    text=True, 
-                    encoding='utf-8', 
-                    env=env,
-                    # CREATE_NO_WINDOW so terminal doesn't pop up briefly, since browser will open
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-                
-                # Check if it succeeded
-                if result.returncode == 0 or "Authenticating profile" in result.stdout or "Authentication Error" not in result.stderr:
-                     self.after(0, lambda: self._show_toast("Đăng nhập NotebookLM thành công!", "success"))
-                else:
-                     logger.error("[NLM] Login failed: %s %s", result.stdout, result.stderr)
-                     self.after(0, lambda: self._show_toast("Đăng nhập NotebookLM thất bại. Vui lòng thử lại.", "error"))
-
-            except Exception as exc:
-                logger.error("[NLM] Login error: %s", exc)
-                self.after(0, lambda: self._show_toast(f"Lỗi đăng nhập NLM: {exc}", "error"))
-            finally:
-                # Always restore button state
-                self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
+            from utils.nlm_worker import NLMWorker
+            success, msg = NLMWorker.login()
+            if success:
+                 self.after(0, lambda: self._show_toast(msg, "success"))
+                 self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
+            else:
+                 logger.error("[NLM] Login failed: %s", msg)
+                 self.after(0, lambda: self._show_toast(f"Đăng nhập NotebookLM thất bại: {msg}", "error"))
+                 self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
 
         thread = threading.Thread(target=_do_login, daemon=True)
         thread.start()
@@ -439,76 +413,27 @@ class GKeepSyncApp(ctk.CTk):
     def _handle_nlm_fetch_notebooks(self):
         self._show_toast("Đang tải danh sách Notebooks...", "info")
         def _do_fetch():
-            from utils.nlm_worker import _UV_NLM_PYTHON
-            import subprocess
-            import json
-            try:
-                if _UV_NLM_PYTHON.exists():
-                    cmd = [str(_UV_NLM_PYTHON), "-c", "from notebooklm_tools.cli.main import cli_main; cli_main()", "list", "notebooks", "--json"]
-                else:
-                    cmd = ["nlm", "list", "notebooks", "--json"]
-                
-                env = __import__("os").environ.copy()
-                env["PYTHONUTF8"] = "1"
-                env["PYTHONIOENCODING"] = "utf-8"
-                
-                res = subprocess.run(
-                    cmd, capture_output=True, text=True, encoding='utf-8', env=env,
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                
-                if res.returncode == 0:
-                    try:
-                        data = json.loads(res.stdout)
-                        if not isinstance(data, list):
-                            data = [data]
-                    except json.JSONDecodeError:
-                        data = []
-                    self.after(0, lambda: self._main_frame.set_nlm_notebooks(data))
-                else:
-                    logger.error("NLM Fetch Error: %s %s", res.stdout, res.stderr)
-                    self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error="Lỗi khi tải notebooks. Xem chi tiết trong log."))
-            except Exception as e:
-                logger.error("NLM Exception: %s", e)
-                self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error=str(e)))
+            from utils.nlm_worker import NLMWorker
+            nbs, err = NLMWorker.get_notebooks()
+            if err:
+                logger.error("[NLM] Fetch Notebooks Error: %s", err)
+                self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error=err))
+            else:
+                self.after(0, lambda: self._main_frame.set_nlm_notebooks(nbs))
+                self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
                 
         thread = threading.Thread(target=_do_fetch, daemon=True)
         thread.start()
 
     def _handle_nlm_fetch_sources(self, nb_id: str):
         def _do_fetch():
-            from utils.nlm_worker import _UV_NLM_PYTHON
-            import subprocess
-            import json
-            try:
-                if _UV_NLM_PYTHON.exists():
-                    cmd = [str(_UV_NLM_PYTHON), "-c", "from notebooklm_tools.cli.main import cli_main; cli_main()", "list", "sources", nb_id, "--json"]
-                else:
-                    cmd = ["nlm", "list", "sources", nb_id, "--json"]
-                
-                env = __import__("os").environ.copy()
-                env["PYTHONUTF8"] = "1"
-                env["PYTHONIOENCODING"] = "utf-8"
-                
-                res = subprocess.run(
-                    cmd, capture_output=True, text=True, encoding='utf-8', env=env,
-                    creationflags=subprocess.CREATE_NO_WINDOW
-                )
-                
-                if res.returncode == 0:
-                    try:
-                        data = json.loads(res.stdout)
-                        if not isinstance(data, list):
-                            data = [data]
-                    except json.JSONDecodeError:
-                        data = []
-                    self.after(0, lambda: self._main_frame.set_nlm_sources(data))
-                else:
-                    logger.error("NLM Fetch Sources Error: %s %s", res.stdout, res.stderr)
-                    self.after(0, lambda: self._main_frame.set_nlm_sources([], error="Lỗi khi tải sources."))
-            except Exception as e:
-                logger.error("NLM Sources Exception: %s", e)
-                self.after(0, lambda: self._main_frame.set_nlm_sources([], error=str(e)))
+            from utils.nlm_worker import NLMWorker
+            srcs, err = NLMWorker.get_sources(nb_id)
+            if err:
+                logger.error("[NLM] Fetch Sources Error: %s", err)
+                self.after(0, lambda: self._main_frame.set_nlm_sources([], error=err))
+            else:
+                self.after(0, lambda: self._main_frame.set_nlm_sources(srcs))
                 
         thread = threading.Thread(target=_do_fetch, daemon=True)
         thread.start()

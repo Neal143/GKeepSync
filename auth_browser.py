@@ -41,6 +41,20 @@ def get_master_token_via_browser(
         on_waiting()
 
 
+def fetch_email_from_token(oauth_token: str) -> Optional[str]:
+    """Sử dụng Google API để lấy email của user dựa vào oauth_token hợp lệ."""
+    import requests
+    try:
+        headers = {"Authorization": f"Bearer {oauth_token}"}
+        resp = requests.get("https://www.googleapis.com/oauth2/v3/userinfo", headers=headers, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("email")
+        return None
+    except:
+        return None
+
+
 def exchange_oauth_for_master(email: str, oauth_token: str) -> tuple[bool, str]:
     """
     Đổi oauth_token (lấy từ cookie sau khi đăng nhập EmbeddedSetup)
@@ -54,6 +68,13 @@ def exchange_oauth_for_master(email: str, oauth_token: str) -> tuple[bool, str]:
         (success, master_token_or_error_msg)
     """
     try:
+        if not email:
+            logger.info("No email provided for OAuth exchange. Attempting to fetch via Google API...")
+            email = fetch_email_from_token(oauth_token)
+            if not email:
+                return False, "Không thể lấy email từ Google (Token hết hạn hoặc lỗi mạng)."
+            logger.info("Successfully fetched email: %s", email)
+
         android_id = hashlib.md5(email.encode()).hexdigest()[:16]
         result = gpsoauth.exchange_token(email, oauth_token, android_id)
 

@@ -1,5 +1,5 @@
-"""
-GKeepSync - Main Frame (Apple Light Theme)
+﻿"""
+GKeepSync - Main Frame (Material 3 Light Theme)
 Giao diện chính sau login: folder picker, filters, sync controls, notes list, status bar.
 """
 
@@ -7,6 +7,8 @@ import customtkinter as ctk
 from tkinter import filedialog
 from datetime import datetime
 from typing import Callable, Optional
+
+from ui.themes.colors import MaterialColors
 
 # Import refactored views
 from ui.views.home_view import HomeView
@@ -27,7 +29,7 @@ class MainFrame(ctk.CTkFrame):
         **kwargs,
     ):
         # Nền bao trùm trắng muốt
-        super().__init__(master, fg_color="#FFFFFF", **kwargs)
+        super().__init__(master, fg_color=MaterialColors.BG_SIDEBAR, **kwargs)
 
         self.on_sync = on_sync
         self._on_auto_sync_toggle = on_auto_sync_toggle
@@ -82,8 +84,8 @@ class MainFrame(ctk.CTkFrame):
         self.select_frame_by_name("home")
 
     def _build_sidebar(self):
-        # MacOS style sidebar: Light Gray background
-        self._sidebar = ctk.CTkFrame(self, fg_color="#F5F5F7", corner_radius=0)
+        # Material 3 style sidebar: Light Gray background
+        self._sidebar = ctk.CTkFrame(self, fg_color=MaterialColors.BG_CONTENT, corner_radius=0)
         self._sidebar.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self._sidebar.grid_rowconfigure(5, weight=1)
 
@@ -92,7 +94,7 @@ class MainFrame(ctk.CTkFrame):
             self._sidebar, 
             text="GKeepSync", 
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#1C1C1E"
+            text_color=MaterialColors.TEXT_MAIN
         )
         title_lbl.grid(row=0, column=0, padx=20, pady=(30, 20), sticky="w")
 
@@ -102,8 +104,8 @@ class MainFrame(ctk.CTkFrame):
                 self._sidebar,
                 text=text,
                 fg_color="transparent",
-                text_color="#1C1C1E",
-                hover_color="#E5E5EA",
+                text_color=MaterialColors.TEXT_MAIN,
+                hover_color=MaterialColors.PRIMARY_LIGHT,
                 anchor="w",
                 corner_radius=8,
                 font=ctk.CTkFont(size=14),
@@ -121,7 +123,7 @@ class MainFrame(ctk.CTkFrame):
         self._nlm_btn = create_nav_btn("📓  NotebookLM", lambda: self.select_frame_by_name("nlm"))
         self._nlm_btn.grid(row=3, column=0, padx=12, pady=4, sticky="ew")
 
-        self._sync_btn_nav = create_nav_btn("⏱️  Lịch sử Sync", lambda: self.select_frame_by_name("sync"))
+        self._sync_btn_nav = create_nav_btn("⏳  Lịch sử Sync", lambda: self.select_frame_by_name("sync"))
         self._sync_btn_nav.grid(row=4, column=0, padx=12, pady=4, sticky="ew")
 
         # Spacer taking up empty vertical space
@@ -136,8 +138,8 @@ class MainFrame(ctk.CTkFrame):
             corner_radius=8,
             anchor="w",
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="#007AFF",
-            hover_color="#0056B3",
+            fg_color=MaterialColors.PRIMARY,
+            hover_color=MaterialColors.PRIMARY_HOVER,
             text_color="#FFFFFF",
             command=self._handle_sync
         )
@@ -148,7 +150,7 @@ class MainFrame(ctk.CTkFrame):
             self._sidebar,
             text="🚪  Đăng xuất",
             fg_color="transparent",
-            text_color="#FF3B30", # Apple Red
+            text_color=MaterialColors.ERROR, # Google Red
             hover_color="#FCECEB",
             anchor="w",
             corner_radius=8,
@@ -160,7 +162,7 @@ class MainFrame(ctk.CTkFrame):
 
     def select_frame_by_name(self, name):
         # Update button colors (Active state like MacOS highlighted item)
-        active_color = "#E5E5EA"
+        active_color = MaterialColors.PRIMARY_LIGHT
         for btn in [self._home_btn, self._keep_btn, self._nlm_btn, self._sync_btn_nav]:
             btn.configure(fg_color="transparent")
 
@@ -322,7 +324,8 @@ class MainFrame(ctk.CTkFrame):
     def set_labels(self, labels: list[str]):
         """Update tag dropdown with available labels."""
         options = ["Tất cả"] + labels
-        self.keep_view.tag_dropdown.configure(values=options)
+        if hasattr(self.keep_view, 'tag_dropdown'):
+            self.keep_view.tag_dropdown.configure(values=options)
         self._tag_var.set("Tất cả")
 
     def get_selected_labels(self) -> Optional[list[str]]:
@@ -333,64 +336,84 @@ class MainFrame(ctk.CTkFrame):
         return [val]
 
     def get_date_from(self) -> Optional[datetime]:
-        return self.keep_view.date_from.get_date()
+        if hasattr(self.keep_view, 'date_from'):
+            return self.keep_view.date_from.get_date()
+        return None
 
     def get_date_to(self) -> Optional[datetime]:
-        return self.keep_view.date_to.get_date()
+        if hasattr(self.keep_view, 'date_to'):
+            return self.keep_view.date_to.get_date()
+        return None
 
     def set_syncing(self, syncing: bool):
         if syncing:
-            self._sync_btn.configure(state="disabled", text="⏳ Syncing...")
+            self._sync_btn.configure(state="disabled", text="⏳ Đang đồng bộ...")
         else:
-            self._sync_btn.configure(state="normal", text="🔄 Sync")
+            self._sync_btn.configure(state="normal", text="🔄 Đồng bộ ngay")
 
     def update_progress(self, text: str, current: int, total: int):
-        self.sync_view.progress.update_progress(text, current, total)
+        if hasattr(self.sync_view, 'progress'):
+            self.sync_view.progress.update_progress(text, current, total)
 
     def reset_progress(self):
-        self.sync_view.progress.update_progress("Ready", 0, 1)
+        if hasattr(self.sync_view, 'progress'):
+            self.sync_view.progress.update_progress("Ready", 0, 1)
 
     def append_keep_log(self, title: str, status: str, msg: str, time_str: str):
-        color = "#34C759" if status == "success" else "#FF3B30" if status == "error" else "#1C1C1E"
-        log = f"[{time_str}] {title}: {msg}"
-        lbl = ctk.CTkLabel(self.sync_view.keep_log_scroll, text=log, text_color=color, anchor="w", justify="left")
-        lbl.pack(fill="x", padx=10, pady=2)
+        if hasattr(self.sync_view, 'keep_log_scroll'):
+            color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
+            log = f"[{time_str}] {title}: {msg}"
+            lbl = ctk.CTkLabel(self.sync_view.keep_log_scroll, text=log, text_color=color, anchor="w", justify="left")
+            lbl.pack(fill="x", padx=10, pady=2)
 
     def append_nlm_log(self, filename: str, status: str, msg: str, time_str: str):
-        color = "#34C759" if status == "success" else "#FF3B30" if status == "error" else "#1C1C1E"
-        log = f"[{time_str}] {filename}: {msg}"
-        lbl = ctk.CTkLabel(self.sync_view.nlm_log_scroll, text=log, text_color=color, anchor="w", justify="left")
-        lbl.pack(fill="x", padx=10, pady=2)
+        if hasattr(self.sync_view, 'nlm_log_scroll'):
+            color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
+            log = f"[{time_str}] {filename}: {msg}"
+            lbl = ctk.CTkLabel(self.sync_view.nlm_log_scroll, text=log, text_color=color, anchor="w", justify="left")
+            lbl.pack(fill="x", padx=10, pady=2)
 
     def update_notes_list(self, notes: list[dict]):
         """Refresh the notes list display using a grid layout with Apple Cards."""
+        if not hasattr(self.keep_view, 'notes_scroll'):
+            return
+            
         # Clear existing
         for widget in self.keep_view.notes_scroll.winfo_children():
             widget.destroy()
 
-        self.keep_view.note_count_label.configure(text=f"{len(notes)} notes")
+        if hasattr(self.keep_view, 'note_count_label'):
+            self.keep_view.note_count_label.configure(text=f"{len(notes)} notes")
 
         if not notes:
             ctk.CTkLabel(
                 self.keep_view.notes_scroll,
-                text="Không tìm thấy ghi chú nào.\nHãy thử đổi bộ lọc hoặc Sync.",
-                text_color="#8E8E93",
+                text="Không tìm thấy ghi chú nào.\nHãy thay đổi bộ lọc hoặc Sync.",
+                text_color=MaterialColors.TEXT_MUTED,
                 justify="center",
                 font=ctk.CTkFont(size=14)
             ).grid(row=0, column=0, columnspan=3, pady=60)
             return
 
-        # 3 columns layout
+        # 4 columns layout
         col = 0
         row = 0
+        today = datetime.now().date()
+
         for i, note in enumerate(notes):
-            # Card container Apple style
+            # Check if updated today
+            updated_dt = note.get("updated")
+            is_today = False
+            if updated_dt and hasattr(updated_dt, "date") and updated_dt.date() == today:
+                is_today = True
+
+            # Card container Material 3 style
             card = ctk.CTkFrame(
                 self.keep_view.notes_scroll,
                 corner_radius=12,
-                fg_color="#FFFFFF",
-                border_width=1,
-                border_color="#E5E5EA"
+                fg_color=MaterialColors.BG_CARD,
+                border_width=2 if is_today else 1,
+                border_color=MaterialColors.PRIMARY if is_today else MaterialColors.BORDER_LIGHT
             )
             card.grid(row=row, column=col, padx=12, pady=12, sticky="nsew")
             card.grid_propagate(False)
@@ -404,7 +427,7 @@ class MainFrame(ctk.CTkFrame):
                 card,
                 text=title,
                 font=ctk.CTkFont(size=14, weight="bold"),
-                text_color="#1C1C1E",
+                text_color=MaterialColors.TEXT_MAIN,
                 anchor="w",
                 justify="left",
                 wraplength=180
@@ -417,7 +440,7 @@ class MainFrame(ctk.CTkFrame):
                 card,
                 text=snippet,
                 font=ctk.CTkFont(size=12),
-                text_color="#8E8E93",
+                text_color=MaterialColors.TEXT_MUTED,
                 anchor="nw",
                 justify="left",
                 wraplength=180,
@@ -435,20 +458,29 @@ class MainFrame(ctk.CTkFrame):
                     meta_frame,
                     text=f"🏷 {tags}",
                     font=ctk.CTkFont(size=11),
-                    text_color="#8E8E93"
+                    text_color=MaterialColors.TEXT_MUTED
                 )
                 tag_lbl.pack(side="left")
             
+            # Extract date from timestamps
+            updated_dt = note.get("updated")
+            date_text = "📅 Update"
+            if updated_dt and hasattr(updated_dt, "strftime"):
+                try:
+                    date_text = f"📅 {updated_dt.strftime('%d/%m/%Y')}"
+                except Exception:
+                    pass
+
             date_lbl = ctk.CTkLabel(
                 meta_frame,
-                text="📅 Update", # Placeholder until real date is implemented
+                text=date_text,
                 font=ctk.CTkFont(size=11),
-                text_color="#8E8E93"
+                text_color=MaterialColors.TEXT_MUTED
             )
             date_lbl.pack(side="right")
             
             col += 1
-            if col > 2:
+            if col > 3: # 4 columns (0, 1, 2, 3)
                 col = 0
                 row += 1
 

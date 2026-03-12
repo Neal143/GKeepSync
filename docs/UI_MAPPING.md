@@ -13,10 +13,8 @@
 | Tên hiển thị trên UI | Loại Component | Tên biến trong code |
 |----------------------|----------------|---------------------|
 | Khung Tab "🌐 Đăng nhập qua Browser" | CTkTabview Tab | `tab_browser` |
-| Textbox nhập Email | CTkEntry | `self._browser_email` |
-| Nút "1️⃣ Mở trình duyệt đăng nhập" | CTkButton | `self._open_browser_btn` |
-| Textbox nhập oauth_token | CTkEntry | `self._oauth_entry` |
-| Nút "3️⃣ Lấy Master Token & Kết nối" | CTkButton | `self._browser_connect_btn` |
+| Text hướng dẫn (Cài Ext & Click) | CTkLabel | `lbl_instruct` |
+| Nút "Đang chờ Extension..." (Status) | CTkButton (Disabled) | `self.btn_ext_status` |
 
 ### 1.2. Tab 2: Nhập Master Token (Thủ công)
 | Tên hiển thị trên UI | Loại Component | Tên biến trong code |
