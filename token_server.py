@@ -87,22 +87,25 @@ class TokenServer:
     """Localhost server that receives email and oauth_token from Chrome Extension."""
 
     def __init__(self, on_token_received: Optional[Callable[[str, str], Optional[tuple[str, str]]]] = None):
-        self._server = None
-        self._thread = None
+        self._server: Optional[HTTPServer] = None
+        self._thread: Optional[threading.Thread] = None
         _TokenHandler.on_token_received = on_token_received
 
     def start(self):
         """Start the token server in a background thread."""
         try:
-            self._server = HTTPServer(("127.0.0.1", TOKEN_SERVER_PORT), _TokenHandler)
-            self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
-            self._thread.start()
+            server = HTTPServer(("127.0.0.1", TOKEN_SERVER_PORT), _TokenHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            self._server = server
+            self._thread = thread
+            thread.start()
             logger.info("Token server started on port %d", TOKEN_SERVER_PORT)
         except OSError as e:
             logger.warning("Token server failed to start: %s", e)
 
     def stop(self):
         """Stop the token server."""
-        if self._server:
-            self._server.shutdown()
+        server = self._server
+        if server:
+            server.shutdown()
             logger.info("Token server stopped.")

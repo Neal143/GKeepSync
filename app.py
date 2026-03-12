@@ -5,7 +5,8 @@ Quản lý frame switching, threading, kết nối UI ↔ Engine.
 
 import threading
 import customtkinter as ctk
-from typing import Callable, Optional
+from customtkinter import CTkLabel, CTkFont
+from typing import Optional
 from auth_browser import exchange_oauth_for_master
 
 from config import Config
@@ -16,6 +17,7 @@ from ui.login_frame import LoginFrame
 from ui.main_frame import MainFrame
 from ui.components import NotificationToast
 from utils.logger import logger
+from utils.nlm_worker import NLMWorker
 
 
 class GKeepSyncApp(ctk.CTk):
@@ -144,7 +146,6 @@ class GKeepSyncApp(ctk.CTk):
 
     def _check_nlm_auth(self):
         def _do_check():
-            from utils.nlm_worker import NLMWorker
             if NLMWorker.check_auth_status():
                 self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
         
@@ -158,7 +159,6 @@ class GKeepSyncApp(ctk.CTk):
             for widget in self._main_frame.keep_view.notes_scroll.winfo_children():
                 widget.destroy()
             
-            from customtkinter import CTkLabel, CTkFont
             CTkLabel(
                 self._main_frame.keep_view.notes_scroll,
                 text="⏳ Đang tải ghi chú từ Google Keep...",
@@ -397,7 +397,6 @@ class GKeepSyncApp(ctk.CTk):
         self._show_toast("Đang mở trình duyệt để đăng nhập NotebookLM...", "info")
         
         def _do_login():
-            from utils.nlm_worker import NLMWorker
             success, msg = NLMWorker.login()
             if success:
                  self.after(0, lambda: self._show_toast(msg, "success"))
@@ -413,7 +412,6 @@ class GKeepSyncApp(ctk.CTk):
     def _handle_nlm_fetch_notebooks(self):
         self._show_toast("Đang tải danh sách Notebooks...", "info")
         def _do_fetch():
-            from utils.nlm_worker import NLMWorker
             nbs, err = NLMWorker.get_notebooks()
             if err:
                 logger.error("[NLM] Fetch Notebooks Error: %s", err)
@@ -427,7 +425,6 @@ class GKeepSyncApp(ctk.CTk):
 
     def _handle_nlm_fetch_sources(self, nb_id: str):
         def _do_fetch():
-            from utils.nlm_worker import NLMWorker
             srcs, err = NLMWorker.get_sources(nb_id)
             if err:
                 logger.error("[NLM] Fetch Sources Error: %s", err)
