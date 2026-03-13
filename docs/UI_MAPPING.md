@@ -1,7 +1,7 @@
 # 🗺️ Bản Đồ Theo Dõi Thành Phần Giao Diện (UI Mapping)
 
 **Dự án:** GKeepSync
-**Ngày tạo:** 2026-03-11
+**Ngày tạo:** 2026-03-11 | **Cập nhật:** 2026-03-14
 **Mục đích:** Tài liệu này liệt kê toàn bộ các thành phần hiển thị trên giao diện (Buttons, Labels, Inputs, Frames, Switch, OptionMenus) cùng với **Tên biến trong hệ thống (Variable / Component Name)**. Khi chúng ta trao đổi, hãy sử dụng các tên này để đảm bảo độ chính xác khi can thiệp vào mã nguồn.
 
 ---
@@ -58,6 +58,7 @@
 | Nút "Browse" (Chọn thư mục) | CTkButton | (Nút Browse không lưu biến, chỉ trigger event) |
 | Dropdown "⏰ Auto Sync" (Chu kỳ) | CTkOptionMenu | `self._interval_dropdown` (linked `interval_var`) |
 | Công tắc bật/tắt Auto Sync | CTkSwitch | `self._auto_sync_switch` |
+| Công tắc "Khởi động cùng Windows" | CTkSwitch | `self._startup_switch` |
 | Thanh Status Bar dưới cùng | StatusBar | `self.status_bar` |
 | Text Trạng thái kết nối (Bên trái Status) | CTkLabel | `self._status_label` (trong StatusBar) |
 | Text Lịch sử Sync (Bên phải Status) | CTkLabel | `self._sync_label` (trong StatusBar) |
@@ -130,3 +131,23 @@ Nếu anh muốn sửa gì, chỉ cần nhắn ví dụ: *"Thay màu chữ của
 | Textbox nhập Email | `<input>` | `id="emailInput"` |
 | Textbox nhập Token | `<input>` | `id="tokenInput"` |
 | Nút "🚀 Gửi Token đến App GKeepSync" | `<button>` | `id="sendBtn"` |
+
+---
+
+## 9. System Tray (TrayManager)
+*File: `ui/tray_manager.py`*
+
+> Đây là module chạy ngầm, không hiển thị UI trong cửa sổ Tkinter mà quản lý icon và menu ở System Tray của Windows.
+
+| Tên hiển thị trên UI | Loại Component | Tên biến trong code |
+|----------------------|----------------|---------------------|
+| Icon tray góc dưới màn hình | `pystray.Icon` | `self._icon` |
+| Menu ngữ cảnh (Context Menu) | `pystray.Menu` | (Được tạo tại runtime) |
+| Mục menu "Mở App" | `pystray.MenuItem` | `"Mở App"` |
+| Mục menu "🔄 Sync Ngay" | `pystray.MenuItem` | `"Sync Ngay"` |
+| Mục menu "❌ Thoát hẳn" | `pystray.MenuItem` | `"Thoát"` |
+
+**Tương tác với App:**
+- `TrayManager` gọi `app.restore_from_tray()` khi người dùng chọn "Mở App".
+- `TrayManager` gọi `app.force_sync_from_tray()` khi chọn "Sync Ngay".
+- `TrayManager` gọi `app.quit_app_entirely()` khi chọn "Thoát".

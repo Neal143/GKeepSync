@@ -1,6 +1,6 @@
 # 🎨 GKeepSync UI/UX Guidelines & Component System (Material 3 + Apple Light Theme)
 
-**Ngày cập nhật:** 2026-03-13
+**Ngày cập nhật:** 2026-03-14
 
 Tài liệu quy chuẩn thiết kế UI/UX theo phong cách **Google Material 3 (Light Theme)** kết hợp cùng nét tinh gọn của **Apple Light Theme** (áp dụng trực tiếp cho khung Đăng Nhập `LoginFrame`) dành riêng cho ứng dụng Desktop GKeepSync sử dụng framework CustomTkinter.
 
@@ -118,7 +118,17 @@ Dù là một màn hình phụ trên trình duyệt, UI của Extension (Popup) 
   - Nút "🌐 Đăng nhập bằng Google" (màu Xanh `#1A73E8`).
   - Dòng trạng thái (Status Label) cực nhỏ góc dưới (Ví dụ: "✅ Đã uỷ quyền" / "❌ Cần mở tab Google").
   - Nút "🚀 Gửi Token đến Desktop App" (khi đã lấy thành công OAuth).
-- **Tương tác:** Nút gửi bị khóa nếu Token chưa sẵn sàng. Sau khi gửi, hiện thông báo Toast Toast ngay trong popup.
+- **Tương tác:** Nút gửi bị khóa nếu Token chưa sẵn sàng. Sau khi gửi, hiện thông báo Toast ngay trong popup.
+
+### 3.4. Hệ thống Chạy ngầm & System Tray (Background Experience)
+- **Vị trí:** Icon xuất hiện tại System Tray (góc dưới bên phải Windows).
+- **Thiết kế Icon:** Logo GKeepSync tối giản, sắc nét.
+- **Menu ngữ cảnh (Context Menu):** 
+  - Gồm 3 lựa chọn chính: **Mở App**, **Đồng bộ ngay**, **Thoát**.
+  - Style menu tuân thủ chuẩn của hệ điều hành nhưng nội dung menu được phân cấp rõ ràng (Action Sync được ưu tiên).
+- **Cơ chế Ẩn/Hiện:**
+  - Nhấn [X] trên cửa sổ chính: Cửa sổ ẩn đi (`withdraw`) nhưng App vẫn duy trì tiến trình để chạy Auto-sync.
+  - Nhấp đúp vào Icon Tray: Khôi phục cửa sổ chính với hiệu ứng mượt mà.
 
 ---
 
@@ -152,6 +162,11 @@ Dù là một màn hình phụ trên trình duyệt, UI của Extension (Popup) 
 1. Truy cập Tab `NotebookLM`. Giao diện empty state hiện "Vui lòng đăng nhập" lớn, kêu gọi hành động (Call To Action).
 2. Khi kết nối xong CLI / Account, tải liền danh sách Sổ (Notebooks). Sổ nào được set active sẽ có viền Card nổi bật xanh.
 3. Nếu bật Auto-sync to NLM (Switch đang on), mỗi khi ấn lệnh Sync Now gốc (Ở sidebar), App sẽ đính kèm quy trình: Goolge Keep tải về local xong → Load tiếp lên NotebookLM.
+
+### 4.6. Luồng Startup & Background Run
+- **Tự động khởi chạy:** App tự nạp khi Login vào Windows nếu tính năng Startup được bật.
+- **Khởi động ngầm (Silent Startup):** App không hiện cửa sổ hay splash screen gây gián đoạn, chỉ hiện Icon nhỏ ở System Tray và âm thầm chờ thực hiện nhiệm vụ đồng bộ.
+- **Bảo trì phiên:** Tự động khôi phục cấu hình Folder và Notebook cuối cùng để sẵn sàng làm việc mà không cần user thao tác lại.
 
 ---
 
