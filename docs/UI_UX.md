@@ -1,8 +1,8 @@
-# 🎨 GKeepSync UI/UX Guidelines & Component System (Material 3)
+# 🎨 GKeepSync UI/UX Guidelines & Component System (Material 3 + Apple Light Theme)
 
-**Ngày cập nhật:** 2026-03-11
+**Ngày cập nhật:** 2026-03-13
 
-Tài liệu quy chuẩn thiết kế UI/UX theo phong cách **Google Material 3 (Light Theme)** dành riêng cho ứng dụng Desktop GKeepSync sử dụng framework CustomTkinter.
+Tài liệu quy chuẩn thiết kế UI/UX theo phong cách **Google Material 3 (Light Theme)** kết hợp cùng nét tinh gọn của **Apple Light Theme** (áp dụng trực tiếp cho khung Đăng Nhập `LoginFrame`) dành riêng cho ứng dụng Desktop GKeepSync sử dụng framework CustomTkinter.
 
 ---
 

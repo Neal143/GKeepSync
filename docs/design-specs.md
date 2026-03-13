@@ -1,4 +1,4 @@
-# Design Specifications - GKeepSync (Apple Light Theme)
+# Design Specifications - GKeepSync (Material 3 - Light Theme)
 
 ## 🎨 Color Palette
 | Name | Hex | Usage |
