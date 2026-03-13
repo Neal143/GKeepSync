@@ -2,3 +2,5 @@ gkeepapi>=0.16.0
 gpsoauth>=1.0.0
 customtkinter>=5.2.0
 pyinstaller>=6.0.0
+pystray>=0.19.3
+Pillow>=10.0.0

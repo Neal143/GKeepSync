@@ -11,6 +11,7 @@ class HomeView(ctk.CTkFrame):
         interval_var: ctk.StringVar,
         on_browse_folder: Callable[[], None],
         on_auto_sync_toggle: Callable[[], None],
+        on_startup_toggle: Callable[[], None] = None,
         **kwargs
     ):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
@@ -92,6 +93,27 @@ class HomeView(ctk.CTkFrame):
             width=60,
         )
         self._auto_sync_switch.grid(row=0, column=2, padx=(0, 16))
+
+        row += 1
+
+        # --- System Settings ---
+        system_frame = ctk.CTkFrame(self, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
+        system_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(4, 12))
+
+        ctk.CTkLabel(
+            system_frame, text="⚙️ Hệ thống:", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=0, padx=(16, 8), pady=16)
+
+        self._startup_switch = ctk.CTkSwitch(
+            system_frame,
+            text="Khởi động cùng Windows",
+            font=ctk.CTkFont(size=13),
+            text_color=MaterialColors.TEXT_MAIN,
+            progress_color=MaterialColors.PRIMARY,
+            command=on_startup_toggle,
+            width=200,
+        )
+        self._startup_switch.grid(row=0, column=1, padx=(0, 16))
 
         row += 1
         

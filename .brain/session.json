@@ -1,57 +1,60 @@
 {
-    "updated_at": "2026-03-11T02:40:00Z",
+    "updated_at": "2026-03-14T01:45:00Z",
     "working_on": {
-        "feature": "UI Refactor Phase 01: Apple Light Theme",
-        "task": "Render Dashboard Sidebar + Content",
-        "status": "running",
-        "last_run": "2026-03-11T02:40:00Z",
+        "feature": "Background Run & Project cleanup",
+        "task": "Final Refactor & Build",
+        "status": "done",
+        "last_run": "2026-03-14T01:45:00Z",
         "files": [
+            "app.py",
             "ui/main_frame.py",
-            "ui/login_frame.py",
-            "app.py"
+            "ui/tray_manager.py",
+            "ui/views/*.py"
         ],
         "blockers": [],
-        "notes": "Đã đổi Theme, chỉnh layout Login card và chuyển Nút Sync xuống Sidebar phía trên nút Logout."
+        "notes": "Đã hoàn thành 100% mục tiêu Background Run và Refactor toàn bộ UI logic sang SRP."
     },
-    "pending_tasks": [
-        {
-            "task": "Test lại luồng cài đặt mới",
-            "priority": "low",
-            "notes": "Chờ User trải nghiệm"
-        }
-    ],
+    "pending_tasks": [],
     "recent_changes": [
         {
-            "timestamp": "2026-03-11T01:35:00Z",
-            "type": "bugfix",
-            "description": "Fix bug extension token transmission, update PRD.",
+            "timestamp": "2026-03-14T01:15:00Z",
+            "type": "refactor",
+            "description": "Major SRP Refactor for App and MainFrame. Separated UI rendering into specialized views.",
             "files": [
-                "extension/background.js",
-                "extension/manifest.json",
-                "token_server.py",
                 "app.py",
-                "docs/PRD.md"
+                "ui/main_frame.py",
+                "ui/tray_manager.py",
+                "ui/views/keep_view.py",
+                "ui/views/nlm_view.py",
+                "ui/views/sync_view.py"
+            ]
+        },
+        {
+            "timestamp": "2026-03-13T18:00:00Z",
+            "type": "feature",
+            "description": "Completed Windows Startup implementation with ghost window fix.",
+            "files": [
+                "app.py",
+                "utils/os_utils.py"
             ]
         }
     ],
     "errors_encountered": [
         {
-            "error": "No email found, saving token for manual send",
-            "solution": "Loại bỏ khối lệnh 'return' kiểm soát email ở 'background.js', cho phép Extension gửi thẳng OAuth Token về `token_server` kể cả khi không fetch được identity.email",
+            "error": "Ghost Window (White screen) flickering on startup",
+            "solution": "Thực hiện 'Alpha Trick': set attributes('-alpha', 0.0) trước khi deiconify/withdraw giúp giao diện Tkinter không bao giờ nháy trắng khi khởi động ngầm.",
             "resolved": true,
-            "file": "extension/background.js"
-        },
-        {
-            "error": "HTTP 400 Bad Request từ Token Server",
-            "solution": "Cho phép Token Server xử lý Payload thiếu trường email để app.py tự tiếp quản logic Email tĩnh.",
-            "resolved": true,
-            "file": "token_server.py"
+            "file": "app.py"
         }
     ],
     "decisions_made": [
         {
-            "decision": "Two-way Handshake OAuth Process",
-            "reason": "By-pass cơ chế kiểm duyệt OAuth phức tạp bằng cách trích xuất trực tiếp cookie, App đổi và lưu Token."
+            "decision": "Separation of Concerns for UI Views",
+            "reason": "MainFrame quá lớn (>500 dòng), việc tách Render logic giúp code dễ bảo trì và mở rộng thêm các View mới sau này."
+        },
+        {
+            "decision": "Using Startup Folder instead of Registry for Auto-start",
+            "reason": "User muốn mang app ra khỏi ổ ảo, Registry fix không tương thích tốt bằng Shortcut thủ công trong shell:startup."
         }
     ]
 }

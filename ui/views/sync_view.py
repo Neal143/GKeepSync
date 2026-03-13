@@ -85,3 +85,15 @@ class SyncView(ctk.CTkFrame):
         )
         self.nlm_log_scroll.grid(row=1, column=1, sticky="nsew", padx=(10, 0))
 
+    def append_keep_log(self, title: str, status: str, msg: str, time_str: str):
+        color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
+        log = f"[{time_str}] {title}: {msg}"
+        lbl = ctk.CTkLabel(self.keep_log_scroll, text=log, text_color=color, anchor="w", justify="left")
+        lbl.pack(fill="x", padx=10, pady=2)
+
+    def append_nlm_log(self, filename: str, status: str, msg: str, time_str: str):
+        color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
+        log = f"[{time_str}] {filename}: {msg}"
+        lbl = ctk.CTkLabel(self.nlm_log_scroll, text=log, text_color=color, anchor="w", justify="left")
+        lbl.pack(fill="x", padx=10, pady=2)
+

@@ -26,6 +26,7 @@ class MainFrame(ctk.CTkFrame):
         on_auto_sync_toggle: Callable[[bool, int], None],
         on_folder_change: Callable[[str], None],
         on_logout: Callable,
+        on_startup_toggle: Callable[[bool], None] = None,
         **kwargs,
     ):
         # Nền bao trùm trắng muốt
@@ -35,6 +36,7 @@ class MainFrame(ctk.CTkFrame):
         self._on_auto_sync_toggle = on_auto_sync_toggle
         self._on_folder_change = on_folder_change
         self.on_logout = on_logout
+        self._on_startup_toggle = on_startup_toggle
 
         # Additional optional callbacks
         self.on_filter_change: Optional[Callable[[], None]] = None
@@ -63,7 +65,8 @@ class MainFrame(ctk.CTkFrame):
             folder_var=self._folder_var,
             interval_var=self._interval_var,
             on_browse_folder=self._browse_folder,
-            on_auto_sync_toggle=self._handle_auto_sync_toggle
+            on_auto_sync_toggle=self._handle_auto_sync_toggle,
+            on_startup_toggle=self._handle_startup_toggle
         )
         self.keep_view = KeepView(
             self,
@@ -76,7 +79,8 @@ class MainFrame(ctk.CTkFrame):
             on_nlm_toggle=self._handle_nlm_toggle,
             on_nlm_id_change=self._handle_nlm_id_change,
             on_nlm_login=self._handle_nlm_login,
-            on_nlm_fetch_notebooks=self._handle_nlm_fetch_notebooks
+            on_nlm_fetch_notebooks=self._handle_nlm_fetch_notebooks,
+            on_select_notebook=self._handle_select_notebook
         )
         self.sync_view = SyncView(self)
 
@@ -209,6 +213,12 @@ class MainFrame(ctk.CTkFrame):
         interval = self._get_interval_minutes()
         self._on_auto_sync_toggle(enabled, interval)
 
+    def _handle_startup_toggle(self):
+        if hasattr(self.home_view, '_startup_switch'):
+            enabled = bool(self.home_view._startup_switch.get())
+            if self._on_startup_toggle:
+                self._on_startup_toggle(enabled)
+
     def _handle_sync(self):
         self.on_sync()
 
@@ -249,38 +259,9 @@ class MainFrame(ctk.CTkFrame):
             self._on_nlm_fetch_notebooks()
 
     def set_nlm_notebooks(self, notebooks: list[dict], error: str = None):
-        self.nlm_view.fetch_nb_btn.configure(state="normal", text="Tải Notebooks")
-        for w in self.nlm_view.nb_scroll.winfo_children():
-            w.destroy()
-
-        if error:
-            ctk.CTkLabel(self.nlm_view.nb_scroll, text=error, text_color="#FF3B30", wraplength=200).pack(pady=20)
-            return
-
-        if not notebooks:
-            ctk.CTkLabel(self.nlm_view.nb_scroll, text="Không tìm thấy Notebook nào.", text_color="#8E8E93").pack(pady=20)
-            return
-
-        for nb in notebooks:
-            card = ctk.CTkFrame(self.nlm_view.nb_scroll, corner_radius=8, fg_color="#FFFFFF", border_width=1, border_color="#E5E5EA")
-            card.pack(fill="x", pady=4, padx=4)
-            card.grid_columnconfigure(0, weight=1)
-            
-            # Select button
-            btn = ctk.CTkButton(
-                card, 
-                text=nb["title"], 
-                anchor="w", 
-                fg_color="transparent", 
-                text_color="#1C1C1E",
-                hover_color="#F5F5F7",
-                font=ctk.CTkFont(size=13, weight="bold"),
-                command=lambda id=nb["id"]: self._handle_select_notebook(id)
-            )
-            btn.grid(row=0, column=0, sticky="ew", padx=4, pady=4)
-            
-            # ID label
-            ctk.CTkLabel(card, text=f"ID: {nb['id'][:8]}...", font=ctk.CTkFont(size=11), text_color="#8E8E93").grid(row=1, column=0, sticky="w", padx=12, pady=(0, 8))
+        """Forward UI update to NLMView."""
+        if hasattr(self.nlm_view, "set_nlm_notebooks"):
+            self.nlm_view.set_nlm_notebooks(notebooks, error)
 
     def _handle_select_notebook(self, nb_id: str):
         self._nlm_id_var.set(nb_id)
@@ -293,26 +274,9 @@ class MainFrame(ctk.CTkFrame):
             self._on_nlm_fetch_sources(nb_id)
 
     def set_nlm_sources(self, sources: list[dict], error: str = None):
-        for w in self.nlm_view.src_scroll.winfo_children():
-            w.destroy()
-
-        if error:
-            ctk.CTkLabel(self.nlm_view.src_scroll, text=error, text_color="#FF3B30", wraplength=200).pack(pady=20)
-            return
-
-        if not sources:
-            ctk.CTkLabel(self.nlm_view.src_scroll, text="Notebook này chưa có source nào.", text_color="#8E8E93").pack(pady=20)
-            return
-
-        for src in sources:
-            card = ctk.CTkFrame(self.nlm_view.src_scroll, corner_radius=8, fg_color="#F5F5F7")
-            card.pack(fill="x", pady=4, padx=4)
-            
-            title = src.get("title", "Untitled Source")
-            ctk.CTkLabel(card, text=f"📄 {title}", anchor="w", font=ctk.CTkFont(weight="bold", size=13), text_color="#1C1C1E").pack(fill="x", padx=10, pady=(8, 2))
-            
-            doc_id = src.get("id", "")
-            ctk.CTkLabel(card, text=f"ID: {doc_id}", font=ctk.CTkFont(size=11), text_color="#8E8E93", anchor="w").pack(fill="x", padx=10, pady=(0, 8))
+        """Forward UI update to NLMView."""
+        if hasattr(self.nlm_view, "set_nlm_sources"):
+            self.nlm_view.set_nlm_sources(sources, error)
 
     # ------------------------------------------------------------------
     # External API for App
@@ -360,129 +324,17 @@ class MainFrame(ctk.CTkFrame):
             self.sync_view.progress.update_progress("Ready", 0, 1)
 
     def append_keep_log(self, title: str, status: str, msg: str, time_str: str):
-        if hasattr(self.sync_view, 'keep_log_scroll'):
-            color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
-            log = f"[{time_str}] {title}: {msg}"
-            lbl = ctk.CTkLabel(self.sync_view.keep_log_scroll, text=log, text_color=color, anchor="w", justify="left")
-            lbl.pack(fill="x", padx=10, pady=2)
+        if hasattr(self.sync_view, 'append_keep_log'):
+            self.sync_view.append_keep_log(title, status, msg, time_str)
 
     def append_nlm_log(self, filename: str, status: str, msg: str, time_str: str):
-        if hasattr(self.sync_view, 'nlm_log_scroll'):
-            color = MaterialColors.SUCCESS if status == "success" else MaterialColors.ERROR if status == "error" else MaterialColors.TEXT_MAIN
-            log = f"[{time_str}] {filename}: {msg}"
-            lbl = ctk.CTkLabel(self.sync_view.nlm_log_scroll, text=log, text_color=color, anchor="w", justify="left")
-            lbl.pack(fill="x", padx=10, pady=2)
+        if hasattr(self.sync_view, 'append_nlm_log'):
+            self.sync_view.append_nlm_log(filename, status, msg, time_str)
 
     def update_notes_list(self, notes: list[dict]):
-        """Refresh the notes list display using a grid layout with Apple Cards."""
-        if not hasattr(self.keep_view, 'notes_scroll'):
-            return
-            
-        # Clear existing
-        for widget in self.keep_view.notes_scroll.winfo_children():
-            widget.destroy()
-
-        if hasattr(self.keep_view, 'note_count_label'):
-            self.keep_view.note_count_label.configure(text=f"{len(notes)} notes")
-
-        if not notes:
-            ctk.CTkLabel(
-                self.keep_view.notes_scroll,
-                text="Không tìm thấy ghi chú nào.\nHãy thay đổi bộ lọc hoặc Sync.",
-                text_color=MaterialColors.TEXT_MUTED,
-                justify="center",
-                font=ctk.CTkFont(size=14)
-            ).grid(row=0, column=0, columnspan=3, pady=60)
-            return
-
-        # 4 columns layout
-        col = 0
-        row = 0
-        today = datetime.now().date()
-
-        for i, note in enumerate(notes):
-            # Check if updated today
-            updated_dt = note.get("updated")
-            is_today = False
-            if updated_dt and hasattr(updated_dt, "date") and updated_dt.date() == today:
-                is_today = True
-
-            # Card container Material 3 style
-            card = ctk.CTkFrame(
-                self.keep_view.notes_scroll,
-                corner_radius=12,
-                fg_color=MaterialColors.BG_CARD,
-                border_width=2 if is_today else 1,
-                border_color=MaterialColors.PRIMARY if is_today else MaterialColors.BORDER_LIGHT
-            )
-            card.grid(row=row, column=col, padx=12, pady=12, sticky="nsew")
-            card.grid_propagate(False)
-
-            # Title
-            title = note.get("title", "")
-            if not title:
-                title = note.get("text", "")[:30] + "..."
-            
-            ctk.CTkLabel(
-                card,
-                text=title,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color=MaterialColors.TEXT_MAIN,
-                anchor="w",
-                justify="left",
-                wraplength=180
-            ).pack(fill="x", padx=16, pady=(16, 4))
-            
-            # Content snippet
-            text = note.get("text", "")
-            snippet = text[:100] + "..." if len(text) > 100 else text
-            ctk.CTkLabel(
-                card,
-                text=snippet,
-                font=ctk.CTkFont(size=12),
-                text_color=MaterialColors.TEXT_MUTED,
-                anchor="nw",
-                justify="left",
-                wraplength=180,
-                height=40
-            ).pack(fill="x", padx=16, pady=0)
-
-            # Metadata footer (tags, date)
-            meta_frame = ctk.CTkFrame(card, fg_color="transparent")
-            meta_frame.pack(fill="x", side="bottom", padx=16, pady=12)
-            
-            labels = note.get("labels", [])
-            if labels:
-                tags = ", ".join(labels)
-                tag_lbl = ctk.CTkLabel(
-                    meta_frame,
-                    text=f"🏷 {tags}",
-                    font=ctk.CTkFont(size=11),
-                    text_color=MaterialColors.TEXT_MUTED
-                )
-                tag_lbl.pack(side="left")
-            
-            # Extract date from timestamps
-            updated_dt = note.get("updated")
-            date_text = "📅 Update"
-            if updated_dt and hasattr(updated_dt, "strftime"):
-                try:
-                    date_text = f"📅 {updated_dt.strftime('%d/%m/%Y')}"
-                except Exception:
-                    pass
-
-            date_lbl = ctk.CTkLabel(
-                meta_frame,
-                text=date_text,
-                font=ctk.CTkFont(size=11),
-                text_color=MaterialColors.TEXT_MUTED
-            )
-            date_lbl.pack(side="right")
-            
-            col += 1
-            if col > 3: # 4 columns (0, 1, 2, 3)
-                col = 0
-                row += 1
+        """Refresh the notes list display by forwarding to KeepView."""
+        if hasattr(self.keep_view, "render_notes"):
+            self.keep_view.render_notes(notes)
 
     def update_status(self, text: str):
         if hasattr(self.home_view, 'status_bar'):

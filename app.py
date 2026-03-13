@@ -18,12 +18,14 @@ from ui.main_frame import MainFrame
 from ui.components import NotificationToast
 from utils.logger import logger
 from utils.nlm_worker import NLMWorker
+from utils import os_utils
+from ui.tray_manager import TrayManager
 
 
 class GKeepSyncApp(ctk.CTk):
     """Main application window."""
 
-    def __init__(self):
+    def __init__(self, start_hidden: bool = False):
         super().__init__()
 
         # --- Config ---
@@ -57,8 +59,14 @@ class GKeepSyncApp(ctk.CTk):
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
 
-        # Handle close
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        # System Tray logic
+        self._tray_manager = TrayManager(self)
+        self.protocol("WM_DELETE_WINDOW", self._tray_manager.hide_to_tray)
+
+        if start_hidden:
+            self.attributes("-alpha", 0.0) # Vô hình hoàn toàn
+            self.withdraw()
+            self.after(50, self.withdraw) # Nhồi thêm để chống tick đầu của mainloop
 
         # --- Layout ---
         self.grid_columnconfigure(0, weight=1)
@@ -77,6 +85,7 @@ class GKeepSyncApp(ctk.CTk):
             on_auto_sync_toggle=self._handle_auto_sync_toggle,
             on_folder_change=self._handle_folder_change,
             on_logout=self._handle_logout,
+            on_startup_toggle=self._handle_startup_toggle,
         )
         self._main_frame.on_filter_change = self._fetch_and_display_notes
         
@@ -94,24 +103,47 @@ class GKeepSyncApp(ctk.CTk):
                 self._config.get("email", ""),
                 self._config.get("master_token", ""),
             )
-            self._show_login()
+            
             # Auto-login
-            self.after(500, lambda: self._handle_login(
-                self._config.get("email"),
-                self._config.get("master_token"),
-            ))
+            if start_hidden:
+                # Nếu chạy ngầm từ Startup thì cứ auto-login dưới nền, cất UI đi
+                self._tray_manager.hide_to_tray()
+                self.after(500, lambda: self._handle_login(
+                    self._config.get("email"),
+                    self._config.get("master_token"),
+                    hidden=True
+                ))
+            else:
+                self._show_login()
+                self.after(500, lambda: self._handle_login(
+                    self._config.get("email"),
+                    self._config.get("master_token"),
+                ))
         else:
-            self._show_login()
+            if start_hidden:
+                # Chưa login bao giờ mà Windows gọi thì đành phải hiện lên cho User nhập
+                self._show_login()
+            else:
+                self._show_login()
 
     def _show_login(self):
         """Show login frame."""
+        self.attributes("-alpha", 1.0) # Đảm bảo hiện hình
+        self.deiconify()
         self._main_frame.grid_forget()
         self._login_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
-    def _show_main(self):
+    def _show_main(self, hidden: bool = False):
         """Show main frame."""
         self._login_frame.grid_forget()
         self._main_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+
+        if hidden:
+            self.attributes("-alpha", 0.0)
+            self.withdraw()
+        else:
+            self.attributes("-alpha", 1.0)
+            self.deiconify()
 
         # Set output folder
         self._main_frame.set_folder(str(self._config.get_output_folder()))
@@ -128,11 +160,32 @@ class GKeepSyncApp(ctk.CTk):
         # Pre-fill NotebookLM settings
         # Set states
         if getattr(self._main_frame, 'home_view', None):
+            # Khôi phục Auto Sync Interval
+            saved_interval = self._config.get("auto_sync_interval_minutes", 60)
+            interval_str = f"{saved_interval} phút"
+            if saved_interval == 180: interval_str = "3 giờ"
+            if saved_interval == 360: interval_str = "6 giờ"
+            self._main_frame._interval_var.set(interval_str)
+
             if self._config.get("auto_sync_enabled") and hasattr(self._main_frame.home_view, '_auto_sync_switch'):
                 self._main_frame.home_view._auto_sync_switch.select()
+                # Phải tự trigger hàm này để SyncEngine thực sự bắt đầu đếm giờ
+                self.after(500, self._main_frame._handle_auto_sync_toggle)
 
             if self._config.get("nlm_sync_enabled") and hasattr(self._main_frame.nlm_view, 'nlm_switch'):
                 self._main_frame.nlm_view.nlm_switch.select()
+
+            # Khôi phục Startup Switch và đồng bộ trạng thái Registry với config
+            if self._config.get("run_on_startup"):
+                if hasattr(self._main_frame.home_view, '_startup_switch'):
+                    self._main_frame.home_view._startup_switch.select()
+                # Kích hoạt lại app trong startup list nếu chẳng may bị HĐH xoá mất
+                if not os_utils.check_startup_status():
+                    os_utils.enable_startup()
+            else:
+                # Dọn rác
+                if os_utils.check_startup_status():
+                    os_utils.disable_startup()
                 
         nlm_id = self._config.get("nlm_notebook_id", "")
         if nlm_id:
@@ -185,23 +238,25 @@ class GKeepSyncApp(ctk.CTk):
     # LOGIN
     # ═══════════════════════════════════════════
 
-    def _handle_login(self, email: str, token: str):
+    def _handle_login(self, email: str, token: str, hidden: bool = False):
         """Handle login - runs in background thread."""
-        self._login_frame.set_loading(True)
+        if not hidden:
+            self._login_frame.set_loading(True)
 
         def _do_login():
             success, msg = self._keep.login(email, token)
             # Schedule UI update on main thread
-            self.after(0, lambda: self._on_login_result(success, msg, email, token))
+            self.after(0, lambda: self._on_login_result(success, msg, email, token, hidden))
 
         thread = threading.Thread(target=_do_login, daemon=True)
         thread.start()
 
-    def _on_login_result(self, success: bool, msg: str, email: str, token: str):
+    def _on_login_result(self, success: bool, msg: str, email: str, token: str, hidden: bool = False):
         """Handle login result on main thread."""
         if success:
             logger.info("Login successful for %s", email)
-            self._login_frame.show_success(msg)
+            if not hidden:
+                self._login_frame.show_success(msg)
 
             # Save credentials
             self._config.set("email", email)
@@ -209,9 +264,12 @@ class GKeepSyncApp(ctk.CTk):
             self._config.save()
 
             # Switch to main frame
-            self.after(500, self._show_main)
+            self.after(500, lambda: self._show_main(hidden=hidden))
         else:
             logger.error("Login failed: %s", msg)
+            if hidden:
+                # Nếu đang ẩn mà login lỗi (VD: đổi pass), bung lên cho user biết
+                self._show_window(None, None)
             self._login_frame.show_error(msg)
 
     # ═══════════════════════════════════════════
@@ -378,6 +436,28 @@ class GKeepSyncApp(ctk.CTk):
             self._show_toast("Auto sync đã tắt", "info")
 
     # ═══════════════════════════════════════════
+    # SYSTEM STARTUP
+    # ═══════════════════════════════════════════
+    
+    def _handle_startup_toggle(self, enabled: bool):
+        self._config.set("run_on_startup", enabled)
+        self._config.save()
+        if enabled:
+            success = os_utils.enable_startup()
+            if success:
+                self._show_toast("Đã bật Khởi động cùng Windows", "success")
+            else:
+                self._show_toast("Lỗi khi thêm vào Startup", "error")
+                # Revert UI state if failed
+                if hasattr(self._main_frame.home_view, '_startup_switch'):
+                    self._main_frame.home_view._startup_switch.deselect()
+                self._config.set("run_on_startup", False)
+                self._config.save()
+        else:
+            os_utils.disable_startup()
+            self._show_toast("Đã tắt Khởi động cùng Windows", "info")
+
+    # ═══════════════════════════════════════════
     # NOTEBOOKLM
     # ═══════════════════════════════════════════
 
@@ -465,11 +545,31 @@ class GKeepSyncApp(ctk.CTk):
         toast.place(relx=0.5, rely=0.02, anchor="n")
 
     def _on_close(self):
-        """Handle window close."""
+        """Handle strict window close."""
         self._sync.stop_auto_sync()
         self._sync._nlm_worker.stop()
         self._token_server.stop()
+        self._tray_manager.stop()
         # Save window geometry
         self._config.set("window_geometry", self.geometry())
         self._config.save()
         self.destroy()
+
+    # ═══════════════════════════════════════════
+    # SYSTEM TRAY CONTROLLER API
+    # ═══════════════════════════════════════════
+
+    def restore_from_tray(self):
+        """Được gọi bởi TrayManager khi user chọn 'Mở App'."""
+        self.attributes("-alpha", 1.0)
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+
+    def force_sync_from_tray(self):
+        """Được gọi bởi TrayManager khi user chọn 'Đồng bộ ngay'."""
+        self._handle_sync()
+
+    def quit_app_entirely(self):
+        """Được gọi bởi TrayManager khi user chọn 'Thoát hẳn App'."""
+        self._on_close()

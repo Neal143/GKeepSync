@@ -13,6 +13,8 @@ if getattr(sys, 'frozen', False):
 else:
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Đảm bảo cwd (Current Working Directory) luôn chuẩn (Dành cho Startup Windows)
+os.chdir(APP_DIR)
 sys.path.insert(0, APP_DIR)
 
 from app import GKeepSyncApp
@@ -21,8 +23,9 @@ from utils.logger import logger
 
 def main():
     logger.info("GKeepSync starting...")
+    is_startup = "--startup" in sys.argv
     try:
-        app = GKeepSyncApp()
+        app = GKeepSyncApp(start_hidden=is_startup)
         app.mainloop()
     except Exception as e:
         logger.critical("Fatal error: %s", e, exc_info=True)

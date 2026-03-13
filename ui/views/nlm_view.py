@@ -11,9 +11,11 @@ class NLMView(ctk.CTkFrame):
         on_nlm_id_change: Callable[[], None],
         on_nlm_login: Callable[[], None],
         on_nlm_fetch_notebooks: Callable[[], None],
+        on_select_notebook: Callable[[str], None] = None,
         **kwargs
     ):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
+        self._on_select_notebook = on_select_notebook
         
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)  # Make lists stretch
@@ -148,3 +150,57 @@ class NLMView(ctk.CTkFrame):
         # Initial placeholder text
         ctk.CTkLabel(self.nb_scroll, text="Bấm 'Tải Notebooks' để bắt đầu", text_color=MaterialColors.TEXT_MUTED).pack(pady=40)
         ctk.CTkLabel(self.src_scroll, text="Chọn một Notebook để xem Sources", text_color=MaterialColors.TEXT_MUTED).pack(pady=40)
+
+    def set_nlm_notebooks(self, notebooks: list[dict], error: str = None):
+        self.fetch_nb_btn.configure(state="normal", text="Tải Notebooks")
+        for w in self.nb_scroll.winfo_children():
+            w.destroy()
+
+        if error:
+            ctk.CTkLabel(self.nb_scroll, text=error, text_color="#FF3B30", wraplength=200).pack(pady=20)
+            return
+        if not notebooks:
+            ctk.CTkLabel(self.nb_scroll, text="Không tìm thấy Notebook nào.", text_color="#8E8E93").pack(pady=20)
+            return
+
+        for nb in notebooks:
+            card = ctk.CTkFrame(self.nb_scroll, corner_radius=8, fg_color="#FFFFFF", border_width=1, border_color="#E5E5EA")
+            card.pack(fill="x", pady=4, padx=4)
+            card.grid_columnconfigure(0, weight=1)
+            
+            # Select button
+            btn = ctk.CTkButton(
+                card, 
+                text=nb["title"], 
+                anchor="w", 
+                fg_color="transparent", 
+                text_color="#1C1C1E",
+                hover_color="#F5F5F7",
+                font=ctk.CTkFont(size=13, weight="bold"),
+                command=lambda id=nb["id"]: self._on_select_notebook(id) if self._on_select_notebook else None
+            )
+            btn.grid(row=0, column=0, sticky="ew", padx=4, pady=4)
+            
+            # ID label
+            ctk.CTkLabel(card, text=f"ID: {nb['id'][:8]}...", font=ctk.CTkFont(size=11), text_color="#8E8E93").grid(row=1, column=0, sticky="w", padx=12, pady=(0, 8))
+
+    def set_nlm_sources(self, sources: list[dict], error: str = None):
+        for w in self.src_scroll.winfo_children():
+            w.destroy()
+
+        if error:
+            ctk.CTkLabel(self.src_scroll, text=error, text_color="#FF3B30", wraplength=200).pack(pady=20)
+            return
+        if not sources:
+            ctk.CTkLabel(self.src_scroll, text="Notebook này chưa có source nào.", text_color="#8E8E93").pack(pady=20)
+            return
+
+        for src in sources:
+            card = ctk.CTkFrame(self.src_scroll, corner_radius=8, fg_color="#F5F5F7")
+            card.pack(fill="x", pady=4, padx=4)
+            
+            title = src.get("title", "Untitled Source")
+            ctk.CTkLabel(card, text=f"📄 {title}", anchor="w", font=ctk.CTkFont(weight="bold", size=13), text_color="#1C1C1E").pack(fill="x", padx=10, pady=(8, 2))
+            
+            doc_id = src.get("id", "")
+            ctk.CTkLabel(card, text=f"ID: {doc_id}", font=ctk.CTkFont(size=11), text_color="#8E8E93", anchor="w").pack(fill="x", padx=10, pady=(0, 8))

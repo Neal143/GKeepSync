@@ -6,12 +6,13 @@
   "project": {
     "name": "GKeepSync",
     "type": "Desktop App",
-    "status": "Development"
+    "status": "Production-Ready"
   },
   "tech_stack": {
     "frontend": {
-      "framework": "CustomTkinter",
-      "language": "Python"
+      "framework": "CustomTkinter (Material 3 Light Theme)",
+      "language": "Python",
+      "tray": "pystray + Pillow (PIL)"
     },
     "backend": {
       "framework": "Python (gkeepapi, gpsoauth)",
@@ -25,20 +26,29 @@
   "api_endpoints": [
     {
       "path": "POST http://127.0.0.1:28371/token",
-      "explained": "Nhận oauth_token từ Chrome Extension, thực hiện exchange_oauth_for_master để trả về master_token."
+      "explained": "Nhận oauth_token từ Chrome Extension để đổi lấy master_token."
+    },
+    {
+      "method": "GKeepSyncApp.restore_from_tray()",
+      "explained": "API nội bộ: Hiện lại cửa sổ App từ System Tray."
     }
   ],
   "business_rules": [
-    "Đồng bộ ghi chú từ Google Keep xuống thư mục Local dưới dạng .md",
-    "Tiếp nhận oauth_token do quá trình đăng nhập qua Extension hỗ trợ để đổi lấy quyền truy cập Google API.",
-    "Liên kết ghi chú lưu tại Local lên kho kiến thức NotebookLM của Google."
+    "Đồng bộ ghi chú Keep -> Markdown Local.",
+    "Bypass login bằng Master Token lưu trong config.json.",
+    "Hoạt động ngầm (Background Run) khi đóng cửa sổ chính.",
+    "Tự khởi động cùng Windows (Startup Run) ở trạng thái ẩn."
   ],
   "features": [
-    "Đồng bộ Manual",
-    "Đồng bộ Auto (Schedule)",
-    "Đăng nhập qua App Password",
-    "Đăng nhập qua Chrome Extension (Bypass OAuth)",
-    "Hỗ trợ giao diện Dark Mode CustomTkinter",
-    "Tích hợp kiến thức NotebookLM"
-  ]
+    "Đồng bộ Manual/Auto (Schedule)",
+    "Đăng nhập qua Chrome Extension (OAuth Flow)",
+    "Tích hợp NotebookLM Knowledge base",
+    "System Tray Management",
+    "Windows Startup (shell:startup)",
+    "Ghost Window Prevention (Alpha=0.0 technique)"
+  ],
+  "architectural_decisions": {
+    "SRP_Refactor_Phase_1": "Tách System Tray ra module TrayManager riêng biệt để giảm tải cho app.py.",
+    "SRP_Refactor_Phase_2": "MainFrame chỉ làm Router, bàn giao logic Render Ghi chú/Notebook/Log về các View tương ứng (KeepView, NLMView, SyncView)."
+  }
 }
