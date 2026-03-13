@@ -17,8 +17,8 @@ GKeepSync là ứng dụng Desktop giúp người dùng Google Keep tải và đ
   - **Cơ chế hoạt động:** Giao diện Extension trên trình duyệt có nhiệm vụ mở tab đăng nhập `EmbeddedSetup` của tài khoản Google. Sau khi tải trang thành công, Extension trích xuất phân tích cookie tạm thời `oauth_token` của chính tab đó.
   - Extension ưu tiên tự động gửi `oauth_token` (có hoặc không có Email đi kèm) về **Token Server (Localhost)** đang chạy ngầm của GKeepSync App thông qua HTTP POST.
   - App GKeepSync sẽ nhận `oauth_token`, kết hợp với Email tĩnh mà người dùng đã nhập trên giao diện Desktop (nếu Extension không bắt được Email), và gọi hàm `exchange_oauth_for_master` để đổi lấy **Master Token** chính thức. Cuối cùng, App sẽ **trả ngược Master Token lại cho Extension** thông qua API Response.
-  - **Lưu trữ bảo mật dài hạn:** Cả **App GKeepSync** và **Extension** đều lưu lại thông tin Master Token này (`config.json` và `chrome.storage.local`). Do đó, nếu User có lỡ đăng xuất trên App Desktop, ở lần sau họ chỉ cần mở Extension và bấm nút "Gửi" là App sẽ tự động truy cập lại (Bypass login browser) mà không cần lấy lại cookie mới.
-- **Tự động lưu phiên (Auto-login):** App tự động lưu Master Token vào file cấu hình local (`config.json`), mỗi lần khởi động lại app sẽ kiểm tra tự động đăng nhập. Khách hàng không cần phải mở Extension mỗi lần dùng App.
+  - **Lưu trữ bảo mật dài hạn & Auto-login Extension:** Cả **App GKeepSync** và **Extension** đều lưu lại thông tin Master Token này (`config.json` và `chrome.storage.local`). Nếu token trên trình duyệt còn hợp lệ, luồng Auto-login của Extension sẽ nhảy qua bước `EmbeddedSetup` và tự động gửi thẳng token về phía local server.
+- **Dịch vụ Xác thực Lõi (Core Auth Services):** App Desktop sử dụng một Auth Service giúp kiểm tra liên kết `config.json` liên tục trên ổ cứng. Nếu có sẵn Master Token hợp lệ từ lần dùng trước, ứng dụng sẽ Bypass hoàn toàn màn hình Đăng Nhập và vào thẳng Trang Chủ.
 
 ### 2.2. Giao diện & Quản lý (Quản trị chung)
 - **Cấu hình thư mục lưu trữ:** Cho phép chọn đường dẫn thư mục lưu các file `.md`.
@@ -37,7 +37,7 @@ GKeepSync là ứng dụng Desktop giúp người dùng Google Keep tải và đ
 ### 2.5. Tích hợp AI Kiến thức (NotebookLM Integration)
 - Đăng nhập phiên tài khoản NotebookLM.
 - Tự động fetch danh sách Sổ tay (Notebooks) & Nguồn (Sources).
-- **Auto-Upload:** Sau khi sync ghi chú từ Keep về Local, tự động push các thay đổi tương ứng lên Notebook được chỉ định nhằm làm giàu nguồn dữ liệu AI.
+- **Auto-Upload & Background Sync Worker:** Dịch vụ tích hợp NotebookLM hoạt động dựa trên một luồng Thead ngầm (NLM Background Worker). Sau khi sync ghi chú từ Keep về Local, App sẽ truyền tín hiệu và worker tiến hành tự động đẩy các thay đổi tương ứng lên Notebook được chỉ định nhằm làm giàu nguồn dữ liệu AI, không gây đóng băng (freeze) giao diện người sử dụng.
 
 ## 3. CÔNG NGHỆ SỬ DỤNG
 - **Ngôn ngữ:** Python 3.x
