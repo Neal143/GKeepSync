@@ -1,7 +1,7 @@
 # 💡 Product Requirements Document (PRD): GKeepSync
 
-**Ngày cập nhật:** 2026-03-11
-**Hiện trạng:** Version 1.x (Đã có tính năng core + tích hợp NotebookLM)
+**Ngày cập nhật:** 2026-03-14
+**Hiện trạng:** Version 1.x (Core + NotebookLM + Background Run)
 **Loại sản phẩm:** Desktop App (Windows)
 
 ---
@@ -23,7 +23,7 @@ GKeepSync là ứng dụng Desktop giúp người dùng Google Keep tải và đ
 ### 2.2. Giao diện & Quản lý (Quản trị chung)
 - **Cấu hình thư mục lưu trữ:** Cho phép chọn đường dẫn thư mục lưu các file `.md`.
 - **Giao diện Sidebar (Navigation):** Chuyển đổi linh hoạt giữa Trang chủ, Google Keep, NotebookLM, Lịch sử Sync.
-- **Dark Mode mặc định:** Giao diện CustomTkinter hiện đại, chủ đề tối ưu.
+- **Light Theme:** Giao diện CustomTkinter theo chuẩn Material 3 Light.
 
 ### 2.3. Tính năng Đồng bộ Ghi chú (Sync Engine)
 - **Đồng bộ thủ công (Manual Sync):** Nút "Sync Now", lấy từ xa và lưu xuống thư mục local.
@@ -39,10 +39,16 @@ GKeepSync là ứng dụng Desktop giúp người dùng Google Keep tải và đ
 - Tự động fetch danh sách Sổ tay (Notebooks) & Nguồn (Sources).
 - **Auto-Upload & Background Sync Worker:** Dịch vụ tích hợp NotebookLM hoạt động dựa trên một luồng Thead ngầm (NLM Background Worker). Sau khi sync ghi chú từ Keep về Local, App sẽ truyền tín hiệu và worker tiến hành tự động đẩy các thay đổi tương ứng lên Notebook được chỉ định nhằm làm giàu nguồn dữ liệu AI, không gây đóng băng (freeze) giao diện người sử dụng.
 
+### 2.6. Chạy ngầm & Khởi động cùng Windows (Background Run)
+- **System Tray:** Khi nhấn [X], app không tắt hẳn mà ẩn xuống System Tray (góc dưới màn hình). Menu chuột phải bao gồm: Mở App, Đồng bộ ngay, Thoát hẳn.
+- **Windows Startup:** Tính năng "Khởi động cùng Windows" được quản lý qua Startup Folder (`shell:startup`). App sẽ khởi động ngầm (không hiện cửa sổ) khi máy tính bẫt.
+- **Ghost Window Prevention:** Thực hiện alpha-trick (`alpha=0.0`) để đảm bảo Tkinter không hiện màn hình trắng trung gian khi khởi động ngầm.
+
 ## 3. CÔNG NGHỆ SỬ DỤNG
 - **Ngôn ngữ:** Python 3.x
-- **Giao diện:** CustomTkinter (UI Grid/Frame modularized)
+- **Giao diện:** CustomTkinter (UI Grid/Frame modularized, Material 3 Light Theme)
 - **API Core:** `gkeepapi`, `gpsoauth`
+- **System Tray:** `pystray`, `Pillow (PIL)`
 - **Đóng gói dự án:** PyInstaller (`.spec` builder)
 
 ## 4. RỦI RO CHIẾN LƯỢC CẦN KIỂM SOÁT

@@ -1,6 +1,7 @@
 # 💡 BRIEF: GKeepSync
 
 **Ngày tạo:** 2026-03-06
+**Cập nhật lần cuối:** 2026-03-14
 **Loại sản phẩm:** Desktop App (Windows .exe)
 
 ---
@@ -30,15 +31,21 @@ App Windows với giao diện đồ họa (CustomTkinter), sử dụng `gkeepapi
 ## 5. TÍNH NĂNG
 
 ### 🚀 MVP (Bắt buộc có):
-- [ ] Đăng nhập bằng Master Token
-- [ ] Sync ghi chú Keep → thư mục local (file `.md`)
-- [ ] Lọc ghi chú theo **tag/label**
-- [ ] Lọc theo **khoảng thời gian** (từ ngày → đến ngày)
-- [ ] **Auto Sync** theo thời gian cài đặt (15 phút / 1 giờ / 6 giờ / tùy chỉnh)
-- [ ] **Manual Sync** bấm nút sync bất cứ lúc nào
-- [ ] Xem danh sách ghi chú đã sync trong app
-- [ ] Chọn thư mục lưu ghi chú
-- [ ] Thông báo khi sync xong / gặp lỗi
+- [x] Đăng nhập bằng Master Token
+- [x] Sync ghi chú Keep → thư mục local (file `.md`)
+- [x] Lọc ghi chú theo **tag/label**
+- [x] Lọc theo **khoảng thời gian** (từ ngày → đến ngày)
+- [x] **Auto Sync** theo thời gian cài đặt (15 phút / 1 giờ / 6 giờ / tùy chỉnh)
+- [x] **Manual Sync** bấm nút sync bất cứ lúc nào
+- [x] Xem danh sách ghi chú đã sync trong app
+- [x] Chọn thư mục lưu ghi chú
+- [x] Thông báo khi sync xong / gặp lỗi
+
+### ⭐ Tính năng nâng cao (Đã hoàn thành):
+- [x] **Đăng nhập qua Chrome Extension (OAuth):** Nhận token từ Extension qua Local HTTP Server.
+- [x] **Tích hợp NotebookLM:** Tự động đẩy ghi chú đã sync lên Notebook chỉ định.
+- [x] **System Tray:** App thu nhỏ về góc màn hình thay vì đóng hẳn khi nhấn [X]. Menu chuột phải: Mở App / Sync Ngay / Thoát.
+- [x] **Windows Startup:** ứng dụng tự khởi động cùng Windows qua Startup Folder, chạy ngầm không hiện cửa sổ.
 
 ## 6. ƯỚC TÍNH SƠ BỘ
 - **Độ phức tạp:** Trung bình
