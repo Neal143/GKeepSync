@@ -18,9 +18,23 @@ class HomeView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
 
         row = 0
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(20, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
-            self, text="🏠 Trang chủ", font=ctk.CTkFont(size=24, weight="bold"), text_color=MaterialColors.TEXT_MAIN
-        ).grid(row=row, column=0, padx=20, pady=(20, 10), sticky="w")
+            header_frame, text="🏠 Trang chủ", font=ctk.CTkFont(size=24, weight="bold"), text_color=MaterialColors.TEXT_MAIN
+        ).grid(row=0, column=0, sticky="w")
+        
+        self._startup_switch = ctk.CTkSwitch(
+            header_frame,
+            text="Khởi động cùng Windows",
+            font=ctk.CTkFont(size=13),
+            text_color=MaterialColors.TEXT_MAIN,
+            progress_color=MaterialColors.PRIMARY,
+            command=on_startup_toggle,
+        )
+        self._startup_switch.grid(row=0, column=1, sticky="e")
         row += 1
 
         # --- Output Folder Management ---
@@ -96,26 +110,7 @@ class HomeView(ctk.CTkFrame):
 
         row += 1
 
-        # --- System Settings ---
-        system_frame = ctk.CTkFrame(self, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
-        system_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(4, 12))
 
-        ctk.CTkLabel(
-            system_frame, text="⚙️ Hệ thống:", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
-        ).grid(row=0, column=0, padx=(16, 8), pady=16)
-
-        self._startup_switch = ctk.CTkSwitch(
-            system_frame,
-            text="Khởi động cùng Windows",
-            font=ctk.CTkFont(size=13),
-            text_color=MaterialColors.TEXT_MAIN,
-            progress_color=MaterialColors.PRIMARY,
-            command=on_startup_toggle,
-            width=200,
-        )
-        self._startup_switch.grid(row=0, column=1, padx=(0, 16))
-
-        row += 1
         
         # Add a stretchable empty row to push the status bar to the very bottom
         self.grid_rowconfigure(row, weight=1)
