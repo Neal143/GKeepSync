@@ -146,6 +146,7 @@ Nếu anh muốn sửa gì, chỉ cần nhắn ví dụ: *"Thay màu chữ của
 | Icon tray góc dưới màn hình | `pystray.Icon` | `self._icon` |
 | Menu ngữ cảnh (Context Menu) | `pystray.Menu` | (Được tạo tại runtime) |
 | Mục menu "Mở App" | `pystray.MenuItem` | `"Mở App"` |
+| Mục menu "NotebookLM: (Trạng thái đăng nhập)" | `pystray.MenuItem` (Dynamic text, Bold if disconnected) | `self._get_nlm_status_text` |
 | Mục menu "🔄 Sync Ngay" | `pystray.MenuItem` | `"Sync Ngay"` |
 | Mục menu "❌ Thoát hẳn" | `pystray.MenuItem` | `"Thoát"` |
 

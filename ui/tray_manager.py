@@ -26,10 +26,15 @@ class TrayManager:
     def _get_nlm_status_text(self, item):
         """Returns the dynamic text for NLM status in the tray."""
         is_signed_in = getattr(self.app, 'nlm_signed_in', False)
-        return "🤖 NotebookLM: Đã kết nối" if is_signed_in else "🤖 NotebookLM: Chưa kết nối"
+        # Sử dụng Emoji để thể hiện màu sắc trên Windows Tray Menu (vì text thuần không hỗ trợ đổi màu)
+        return "✅ NotebookLM: Đã đăng nhập" if is_signed_in else "❌ NotebookLM: Chưa đăng nhập"
 
     def _do_nothing(self, icon, item):
         pass
+
+    def _is_nlm_disconnected(self, item):
+        """Returns True if NLM is NOT signed in, making the item bold (default)."""
+        return not getattr(self.app, 'nlm_signed_in', False)
 
     def hide_to_tray(self):
         """Mục tiêu [MVP-3]: Thu nhỏ xuống khay hệ thống thay vì đóng."""
@@ -43,10 +48,11 @@ class TrayManager:
                 icon_image = self._create_default_icon()
 
             menu = pystray.Menu(
-                pystray.MenuItem("Mở App", self._on_show_clicked, default=True),
-                pystray.MenuItem("Đồng bộ ngay", self._on_sync_clicked),
+                # Use default=self._is_nlm_disconnected to make it bold conditionally
+                pystray.MenuItem(self._get_nlm_status_text, self._do_nothing, enabled=False, default=self._is_nlm_disconnected),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem(self._get_nlm_status_text, self._do_nothing, enabled=False),
+                pystray.MenuItem("Mở App", self._on_show_clicked, default=False),
+                pystray.MenuItem("Đồng bộ ngay", self._on_sync_clicked),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Thoát hẳn App", self._on_quit_clicked)
             )
