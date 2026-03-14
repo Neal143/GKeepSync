@@ -323,13 +323,13 @@ class MainFrame(ctk.CTkFrame):
         if hasattr(self.sync_view, 'progress'):
             self.sync_view.progress.update_progress("Ready", 0, 1)
 
-    def append_keep_log(self, title: str, status: str, msg: str, time_str: str):
-        if hasattr(self.sync_view, 'append_keep_log'):
-            self.sync_view.append_keep_log(title, status, msg, time_str)
+    def reset_grid(self):
+        if hasattr(self.sync_view, 'reset_grid'):
+            self.sync_view.reset_grid()
 
-    def append_nlm_log(self, filename: str, status: str, msg: str, time_str: str):
-        if hasattr(self.sync_view, 'append_nlm_log'):
-            self.sync_view.append_nlm_log(filename, status, msg, time_str)
+    def update_file_status(self, filename: str, service: str, status: str, msg: str, time_str: str):
+        if hasattr(self.sync_view, 'update_file_status'):
+            self.sync_view.update_file_status(filename, service, status, msg, time_str)
 
     def update_notes_list(self, notes: list[dict]):
         """Refresh the notes list display by forwarding to KeepView."""

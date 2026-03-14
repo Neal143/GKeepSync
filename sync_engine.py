@@ -31,9 +31,11 @@ class SyncEngine:
         self.on_sync_start: Optional[Callable] = None
         self.on_sync_progress: Optional[Callable[[str, int, int], None]] = None
         self.on_sync_complete: Optional[Callable[[int, int, str], None]] = None
-        self.on_sync_complete: Optional[Callable[[int, int, str], None]] = None
         self.on_sync_error: Optional[Callable[[str], None]] = None
-        self.on_sync_log: Optional[Callable[[str, str, str], None]] = None
+        
+        # New callback for File-Centric Dashboard: 
+        # func(filename: str, service: str ('keep' or 'nlm'), status: str ('pending', 'success', 'skipped', 'error'), msg: str)
+        self.on_file_sync_status: Optional[Callable[[str, str, str, str], None]] = None
 
     @property
     def is_syncing(self) -> bool:
@@ -84,8 +86,8 @@ class SyncEngine:
                         if isinstance(s, dict) and s.get("title")
                     }
                 else:
-                    if self.on_sync_log:
-                        self.on_sync_log("NotebookLM", "warn", f"Không thể lấy danh sách nguồn: {error}")
+                    if self.on_sync_error:
+                        self.on_sync_error(f"NotebookLM: Không thể lấy danh sách nguồn: {error}")
 
             # Get notes from Keep
             notes = self._client.get_notes(
@@ -152,14 +154,17 @@ class SyncEngine:
                         if self.on_sync_progress:
                             self.on_sync_progress(note["title"], i + 1, total)
                         
+                        if self.on_file_sync_status:
+                            self.on_file_sync_status(filepath.name, "keep", "skipped", "Đã có sẵn (không đổi)")
+
                         # Even if local didn't change, we might still need to upload if it's missing from NLM
                         if nlm_enabled and nlm_nb_id and should_upload_nlm:
                             self._nlm_worker.enqueue(filepath, nlm_nb_id)
-                            if self.on_sync_log:
-                                self.on_sync_log(filepath.name, "gray", "Sẽ đẩy lên NotebookLM sau đó")
-                        else:
-                            if self.on_sync_log:
-                                self.on_sync_log(filepath.name, "gray", "Đã có sẵn (không đổi)")
+                            if self.on_file_sync_status:
+                                self.on_file_sync_status(filepath.name, "nlm", "pending", "Chờ đẩy lên NLM")
+                        elif nlm_enabled and nlm_nb_id and not should_upload_nlm:
+                            if self.on_file_sync_status:
+                                self.on_file_sync_status(filepath.name, "nlm", "skipped", "Đã có trên NLM")
                         continue
 
                     # Write file
@@ -168,16 +173,23 @@ class SyncEngine:
 
                     synced += 1
                     
-                    if self.on_sync_log:
-                        self.on_sync_log(filepath.name, "success", "Đã ghi file thành công")
+                    if self.on_file_sync_status:
+                        self.on_file_sync_status(filepath.name, "keep", "success", "Tải thành công")
 
                     # --- NotebookLM sync ---
                     if should_upload_nlm:
                         if nlm_enabled and nlm_nb_id:
                             if is_on_nlm and not existed_local:
-                                if self.on_sync_log:
-                                    self.on_sync_log(filepath.name, "warn", "Thiếu file ở máy tính -> Xóa bản cũ trên NLM trước khi upload mới")
+                                if self.on_file_sync_status:
+                                    self.on_file_sync_status(filepath.name, "nlm", "pending", "Xóa cũ & upload mới")
+                                else:
+                                    pass # Log logic fallback omitted
                         self._nlm_worker.enqueue(filepath, nlm_nb_id)
+                        if self.on_file_sync_status:
+                            self.on_file_sync_status(filepath.name, "nlm", "pending", "Chờ đẩy lên NLM")
+                    elif nlm_enabled and nlm_nb_id and not should_upload_nlm:
+                        if self.on_file_sync_status:
+                            self.on_file_sync_status(filepath.name, "nlm", "skipped", "Đã có trên NLM")
 
                     if self.on_sync_progress:
                         self.on_sync_progress(note["title"], i + 1, total)
@@ -185,8 +197,8 @@ class SyncEngine:
                 except Exception as e:
                     if self.on_sync_error:
                         self.on_sync_error(f"Lỗi đọc/ghi '{note['title']}': {e}")
-                    if self.on_sync_log:
-                        self.on_sync_log(note['title'], "error", str(e))
+                    if self.on_file_sync_status:
+                        self.on_file_sync_status(f"{sanitize_filename(note['title'])}.md", "keep", "error", str(e))
 
             # Update config
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

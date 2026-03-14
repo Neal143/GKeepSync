@@ -16,6 +16,8 @@ class MaterialColors:
     ERROR = "#EA4335"              # Đỏ (Logout, báo lỗi)
     SUCCESS = "#34A853"            # Xanh lá (Hoạt động tốt)
     WARNING = "#FBBC04"            # Vàng 
+    PENDING = "#4285F4"            # Xanh dương (Đang xử lý)
+    SKIPPED = "#9AA0A6"            # Xám nhạt (Bỏ qua/Không đổi)
 
     # Typography / Border
     TEXT_MAIN = "#1F1F1F"          # Chữ đen rõ
@@ -26,3 +28,5 @@ class MaterialColors:
 
     # Misc
     BG_TERMINAL = "#1E1E1E"        # Màu nền đen mờ cho tab Sync Log
+    INFO_KEEP = "#FBBC04"          # Vàng (Nhãn [KEEP])
+    INFO_NLM = "#A142F4"           # Tím (Nhãn [NLM])

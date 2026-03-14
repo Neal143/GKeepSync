@@ -38,11 +38,10 @@ class GKeepSyncApp(ctk.CTk):
         self._sync.on_sync_progress = self._on_sync_progress
         self._sync.on_sync_complete = self._on_sync_complete
         self._sync.on_sync_error = self._on_sync_error
-        self._sync.on_sync_log = self._on_sync_log
+        self._sync.on_file_sync_status = self._on_file_sync_status
         
         # Wire NLMWorker callbacks to update the UI Log
-        self._sync._nlm_worker.on_upload_success = self._on_nlm_success
-        self._sync._nlm_worker.on_upload_error = self._on_nlm_error
+        self._sync._nlm_worker.on_file_sync_status = self._on_file_sync_status
 
         # Start token receiver server (for Chrome Extension)
         self._token_server = TokenServer(
@@ -349,6 +348,7 @@ class GKeepSyncApp(ctk.CTk):
 
     def _on_sync_start(self):
         self.after(0, lambda: self._main_frame.set_syncing(True))
+        self.after(0, lambda: self._main_frame.reset_grid())
 
     def _on_sync_progress(self, title: str, current: int, total: int):
         self.after(
@@ -357,24 +357,14 @@ class GKeepSyncApp(ctk.CTk):
                 self._main_frame.update_progress(f"📝 {t}", c, tot),
         )
 
-    def _on_sync_log(self, title: str, status: str, msg: str):
+    def _on_file_sync_status(self, filename: str, service: str, status: str, msg: str):
         from datetime import datetime
         now_str = datetime.now().strftime("%H:%M:%S")
         self.after(
             0,
-            lambda t=title, s=status, m=msg, d=now_str:
-                self._main_frame.append_keep_log(t, s, m, d)
+            lambda f=filename, srv=service, st=status, m=msg, d=now_str:
+                self._main_frame.update_file_status(f, srv, st, m, d)
         )
-
-    def _on_nlm_success(self, filename: str):
-        from datetime import datetime
-        now_str = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self._main_frame.append_nlm_log(filename, "success", "Upload OK", now_str))
-        
-    def _on_nlm_error(self, msg: str):
-        from datetime import datetime
-        now_str = datetime.now().strftime("%H:%M:%S")
-        self.after(0, lambda: self._main_frame.append_nlm_log("NLM Worker", "error", msg, now_str))
 
     def _on_sync_complete(self, synced: int, total: int, msg: str):
         logger.info("Sync complete: %s", msg)

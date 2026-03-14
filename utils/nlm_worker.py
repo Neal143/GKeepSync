@@ -34,8 +34,8 @@ class NLMWorker:
         self._running = False
 
         # Optional callback for UI status updates.
-        self.on_upload_success: Optional[Callable[[str], None]] = None
-        self.on_upload_error: Optional[Callable[[str], None]] = None
+        # func(filename: str, service: str ('keep' or 'nlm'), status: str ('pending', 'success', 'skipped', 'error'), msg: str)
+        self.on_file_sync_status: Optional[Callable[[str, str, str, str], None]] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -89,8 +89,8 @@ class NLMWorker:
             except Exception as exc:
                 msg = f"[NLM] Unexpected error processing {filepath.name}: {exc}"
                 logger.error(msg)
-                if self.on_upload_error:
-                    self.on_upload_error(msg)
+                if self.on_file_sync_status:
+                    self.on_file_sync_status(filepath.name, "nlm", "error", str(exc))
             finally:
                 self._queue.task_done()
 
@@ -118,14 +118,14 @@ class NLMWorker:
         if result and result.returncode == 0:
             msg = f"[NLM] ✅ Uploaded: {filepath.name}"
             logger.info(msg)
-            if self.on_upload_success:
-                self.on_upload_success(filepath.name)
+            if self.on_file_sync_status:
+                self.on_file_sync_status(filepath.name, "nlm", "success", "Tải lên thành công")
         else:
             stderr = result.stderr if result else "no output"
             msg = f"[NLM] ❌ Failed to upload {filepath.name}: {stderr}"
             logger.error(msg)
-            if self.on_upload_error:
-                self.on_upload_error(msg)
+            if self.on_file_sync_status:
+                self.on_file_sync_status(filepath.name, "nlm", "error", f"Lỗi: {stderr}")
 
         time.sleep(NLM_RATE_LIMIT_DELAY)
 
