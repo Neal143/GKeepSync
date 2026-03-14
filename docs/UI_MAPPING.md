@@ -100,8 +100,9 @@
 | Tên hiển thị trên UI | Loại Component | Tên biến trong code |
 |----------------------|----------------|---------------------|
 | Thanh Progress Bar hiển thị | SyncProgressBar | `self.progress` |
-| Vùng cuộn "📝 Google Keep Log" | CTkScrollableFrame | `self.keep_log_scroll` |
-| Vùng cuộn "📓 NotebookLM Log" | CTkScrollableFrame | `self.nlm_log_scroll` |
+| Khung Banner Thống Kê (Tổng số/Thành công/Lỗi/Bỏ qua) | Chứa các CTkFrame tĩnh | `self.summary_frame` |
+| Bảng danh sách trạng thái File | CTkScrollableFrame | `self.grid_scroll` |
+| Bản đồ State Tracking File (in-memory) | Dictionary | `self._file_rows` |
 
 ---
 

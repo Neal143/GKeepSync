@@ -28,7 +28,7 @@ GKeepSync là ứng dụng Desktop giúp người dùng Google Keep tải và đ
 ### 2.3. Tính năng Đồng bộ Ghi chú (Sync Engine)
 - **Đồng bộ thủ công (Manual Sync):** Nút "Sync Now", lấy từ xa và lưu xuống thư mục local.
 - **Đồng bộ tự động (Auto Sync):** Lên lịch đồng bộ tự động theo chu kỳ: 15 phút, 30 phút, 60 phút, 3 giờ, 6 giờ chạy ngầm.
-- **Xử lý trùng lặp & Cập nhật mới:** So sánh nội dung, chỉ ghi đè file `.md` nếu phát hiện có sự thay đổi. Xử lý trùng lặp Title bằng cách nối thêm ID của Google Keep.
+- **Xử lý trùng lặp & Cập nhật mới:** So sánh nội dung, chỉ ghi đè file `.md` nếu phát hiện thay đổi. Xử lý trùng lặp Title bằng cách nối thêm ID của Google Keep. Note: Trạng thái đồng bộ được theo dõi độc lập theo từng file (tải từ Keep & đẩy lên NLM) qua RAM-state map hiển thị trên DataGrid (File-Centric Dashboard).
 
 ### 2.4. Tính năng Trích lọc (Filters)
 - **Lọc theo Nhãn (Tag/Label):** Quản lý đồng bộ hoặc xem trước các danh mục chuyên biệt dựa vào Labels có sẵn trên Keep.

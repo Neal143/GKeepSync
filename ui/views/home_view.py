@@ -37,9 +37,16 @@ class HomeView(ctk.CTkFrame):
         self._startup_switch.grid(row=0, column=1, sticky="e")
         row += 1
 
+        # --- Settings Container ---
+        settings_frame = ctk.CTkFrame(self, fg_color="transparent")
+        settings_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(8, 12))
+        settings_frame.grid_columnconfigure(0, weight=1)
+        settings_frame.grid_columnconfigure(1, weight=0)
+        row += 1
+
         # --- Output Folder Management ---
-        folder_frame = ctk.CTkFrame(self, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
-        folder_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(8, 12))
+        folder_frame = ctk.CTkFrame(settings_frame, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
+        folder_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         folder_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
@@ -71,11 +78,9 @@ class HomeView(ctk.CTkFrame):
             command=on_browse_folder,
         ).grid(row=0, column=2, padx=(0, 16))
 
-        row += 1
-
         # --- Auto Sync Settings ---
-        auto_frame = ctk.CTkFrame(self, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
-        auto_frame.grid(row=row, column=0, sticky="ew", padx=20, pady=(4, 12))
+        auto_frame = ctk.CTkFrame(settings_frame, fg_color=MaterialColors.BG_CARD, corner_radius=12, border_width=1, border_color=MaterialColors.BORDER_LIGHT)
+        auto_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         ctk.CTkLabel(
             auto_frame, text="⏰ Tự động đồng bộ:", font=ctk.CTkFont(size=14, weight="bold"), text_color=MaterialColors.TEXT_MAIN
@@ -107,8 +112,6 @@ class HomeView(ctk.CTkFrame):
             width=60,
         )
         self._auto_sync_switch.grid(row=0, column=2, padx=(0, 16))
-
-        row += 1
 
 
         
