@@ -57,6 +57,9 @@ class GKeepSyncApp(ctk.CTk):
         # Appearance
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
+        
+        # State tracking
+        self.nlm_signed_in = False
 
         # System Tray logic
         self._tray_manager = TrayManager(self)
@@ -199,7 +202,10 @@ class GKeepSyncApp(ctk.CTk):
     def _check_nlm_auth(self):
         def _do_check():
             if NLMWorker.check_auth_status():
+                self.nlm_signed_in = True
                 self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
+            else:
+                self.nlm_signed_in = False
         
         thread = threading.Thread(target=_do_check, daemon=True)
         thread.start()
@@ -469,9 +475,11 @@ class GKeepSyncApp(ctk.CTk):
         def _do_login():
             success, msg = NLMWorker.login()
             if success:
+                 self.nlm_signed_in = True
                  self.after(0, lambda: self._show_toast(msg, "success"))
                  self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
             else:
+                 self.nlm_signed_in = False
                  logger.error("[NLM] Login failed: %s", msg)
                  self.after(0, lambda: self._show_toast(f"Đăng nhập NotebookLM thất bại: {msg}", "error"))
                  self.after(0, lambda: self._main_frame.set_nlm_login_state(False, "Đăng nhập NLM"))
@@ -487,6 +495,7 @@ class GKeepSyncApp(ctk.CTk):
                 logger.error("[NLM] Fetch Notebooks Error: %s", err)
                 self.after(0, lambda: self._main_frame.set_nlm_notebooks([], error=err))
             else:
+                self.nlm_signed_in = True
                 self.after(0, lambda: self._main_frame.set_nlm_notebooks(nbs))
                 self.after(0, lambda: self._main_frame.set_nlm_login_state(True, "Đã đăng nhập"))
                 

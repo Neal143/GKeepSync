@@ -61,6 +61,7 @@
 | Công tắc "Khởi động cùng Windows" | CTkSwitch | `self._startup_switch` |
 | Thanh Status Bar dưới cùng | StatusBar | `self.status_bar` |
 | Text Trạng thái kết nối (Bên trái Status) | CTkLabel | `self._status_label` (trong StatusBar) |
+| Text Trạng thái NLM (Kế bên Trạng thái kết nối) | CTkLabel | `self._nlm_status_label` (trong StatusBar) |
 | Text Lịch sử Sync (Bên phải Status) | CTkLabel | `self._sync_label` (trong StatusBar) |
 
 ---

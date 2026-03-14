@@ -247,6 +247,8 @@ class MainFrame(ctk.CTkFrame):
             state="disabled" if is_disabled else "normal",
             text=text
         )
+        if hasattr(self, 'home_view') and hasattr(self.home_view, 'status_bar'):
+            self.home_view.status_bar.set_nlm_status(is_disabled and text == "Đã đăng nhập")
 
     def _handle_nlm_fetch_notebooks(self):
         if self._on_nlm_fetch_notebooks:

@@ -61,6 +61,15 @@ class StatusBar(ctk.CTkFrame):
         )
         self._status_label.pack(side="left", padx=12, pady=4)
 
+        self._nlm_status_label = ctk.CTkLabel(
+            self,
+            text=" | NotebookLM: ❌",
+            font=ctk.CTkFont(size=12),
+            text_color=MaterialColors.ERROR,
+            anchor="w",
+        )
+        self._nlm_status_label.pack(side="left", padx=0, pady=4)
+
         self._sync_label = ctk.CTkLabel(
             self,
             text="",
@@ -72,6 +81,12 @@ class StatusBar(ctk.CTkFrame):
 
     def set_status(self, text: str):
         self._status_label.configure(text=text)
+
+    def set_nlm_status(self, logged_in: bool):
+        if logged_in:
+            self._nlm_status_label.configure(text=" | NotebookLM: ✅", text_color=MaterialColors.SUCCESS)
+        else:
+            self._nlm_status_label.configure(text=" | NotebookLM: ❌", text_color=MaterialColors.ERROR)
 
     def set_sync_info(self, text: str):
         self._sync_label.configure(text=text)

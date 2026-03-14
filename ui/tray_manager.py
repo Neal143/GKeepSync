@@ -23,6 +23,14 @@ class TrayManager:
         dc.rectangle([16, 16, 48, 48], fill=(255, 255, 255))
         return image
 
+    def _get_nlm_status_text(self, item):
+        """Returns the dynamic text for NLM status in the tray."""
+        is_signed_in = getattr(self.app, 'nlm_signed_in', False)
+        return "🤖 NotebookLM: Đã kết nối" if is_signed_in else "🤖 NotebookLM: Chưa kết nối"
+
+    def _do_nothing(self, icon, item):
+        pass
+
     def hide_to_tray(self):
         """Mục tiêu [MVP-3]: Thu nhỏ xuống khay hệ thống thay vì đóng."""
         self.app.withdraw()  # Ẩn cửa sổ Tkinter chính
@@ -37,6 +45,8 @@ class TrayManager:
             menu = pystray.Menu(
                 pystray.MenuItem("Mở App", self._on_show_clicked, default=True),
                 pystray.MenuItem("Đồng bộ ngay", self._on_sync_clicked),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem(self._get_nlm_status_text, self._do_nothing, enabled=False),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Thoát hẳn App", self._on_quit_clicked)
             )
