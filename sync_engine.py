@@ -62,6 +62,31 @@ class SyncEngine:
         try:
             output_folder = self._config.get_output_folder()
 
+            # --- NLM Pre-sync: Fetch all existing sources to avoid redundant uploads ---
+            nlm_enabled = self._config.get("nlm_sync_enabled", False)
+            nlm_nb_id = self._config.get("nlm_notebook_id", "")
+            
+            existing_nlm_titles = set()
+            if nlm_enabled and nlm_nb_id:
+                sources, error = self._nlm_worker.get_sources(nlm_nb_id)
+                if not error:
+                    # NLM titles are often returned with the .md extension.
+                    # We strip the .md extension here to match filepath.stem later.
+                    def _normalize_title(t):
+                        t_str = t.strip().lower()
+                        if t_str.endswith(".md"):
+                            t_str = t_str[:-3]
+                        return t_str
+
+                    existing_nlm_titles = {
+                        _normalize_title(s.get("title", ""))
+                        for s in sources 
+                        if isinstance(s, dict) and s.get("title")
+                    }
+                else:
+                    if self.on_sync_log:
+                        self.on_sync_log("NotebookLM", "warn", f"Không thể lấy danh sách nguồn: {error}")
+
             # Get notes from Keep
             notes = self._client.get_notes(
                 labels=labels if labels else None,
@@ -76,22 +101,66 @@ class SyncEngine:
             for i, note in enumerate(notes):
                 try:
                     filepath = self._get_safe_filepath(note, output_folder)
+                    title_stem = filepath.stem # Match what NLMWorker uses for title
                     
                     # Generate markdown content
                     md_content = note_to_markdown(note)
 
-                    # Check if file needs updating
-                    if filepath.exists():
+                    # Determine if we need to update local file and if we need to upload to NLM
+                    should_write_file = True
+                    should_upload_nlm = True
+                    
+                    # 1. Check local file status
+                    existed_local = filepath.exists()
+                    if existed_local:
                         with open(filepath, "r", encoding="utf-8") as f:
-                            existing = f.read()
-                        if existing == md_content:
-                            synced += 1
-                            if self.on_sync_progress:
-                                self.on_sync_progress(note["title"], i + 1, total)
+                            existing_full_content = f.read()
+                        
+                        if existing_full_content == md_content:
+                            # Local file is identical to Keep note
+                            should_write_file = False
+                        else:
+                            # Something changed. Check if it's just metadata (frontmatter).
+                            existing_body = self._strip_frontmatter(existing_full_content)
+                            current_body = self._strip_frontmatter(md_content)
+                            
+                            if existing_body == current_body:
+                                # Only metadata changed, no need to upload to NLM
+                                should_upload_nlm = False
+                                if self.on_sync_log:
+                                    self.on_sync_log(filepath.name, "gray", "Chỉ cập nhật metadata")
+                            else:
+                                updated += 1
+                    
+                    # 2. Check NLM status (User Criteria: upload if missing OR updated)
+                    if nlm_enabled and nlm_nb_id:
+                        is_on_nlm = title_stem.strip().lower() in existing_nlm_titles
+                        
+                        if not is_on_nlm:
+                            # Criteria 1: "file chưa tồn tại trên notebook đích"
+                            should_upload_nlm = True
+                        elif not should_write_file:
+                            # Local didn't change AND it's already on NLM
+                            should_upload_nlm = False
+                        # If should_write_file is True but it was ONLY metadata, 
+                        # should_upload_nlm was already set to False above.
+                    else:
+                        should_upload_nlm = False
+
+                    if not should_write_file:
+                        synced += 1
+                        if self.on_sync_progress:
+                            self.on_sync_progress(note["title"], i + 1, total)
+                        
+                        # Even if local didn't change, we might still need to upload if it's missing from NLM
+                        if nlm_enabled and nlm_nb_id and should_upload_nlm:
+                            self._nlm_worker.enqueue(filepath, nlm_nb_id)
+                            if self.on_sync_log:
+                                self.on_sync_log(filepath.name, "success", "Đang cập nhật lên NLM (file chưa có)")
+                        else:
                             if self.on_sync_log:
                                 self.on_sync_log(filepath.name, "gray", "Đã có sẵn (không đổi)")
-                            continue
-                        updated += 1
+                        continue
 
                     # Write file
                     with open(filepath, "w", encoding="utf-8") as f:
@@ -103,9 +172,11 @@ class SyncEngine:
                         self.on_sync_log(filepath.name, "success", "Đã ghi file thành công")
 
                     # --- NotebookLM sync ---
-                    nlm_enabled = self._config.get("nlm_sync_enabled", False)
-                    nlm_nb_id = self._config.get("nlm_notebook_id", "")
-                    if nlm_enabled and nlm_nb_id:
+                    if should_upload_nlm:
+                        if nlm_enabled and nlm_nb_id:
+                            if is_on_nlm and not existed_local:
+                                if self.on_sync_log:
+                                    self.on_sync_log(filepath.name, "warn", "Thiếu file ở máy tính -> Xóa bản cũ trên NLM trước khi upload mới")
                         self._nlm_worker.enqueue(filepath, nlm_nb_id)
 
                     if self.on_sync_progress:
@@ -136,6 +207,19 @@ class SyncEngine:
             return 0, 0, error_msg
         finally:
             self._is_syncing = False
+
+    def _strip_frontmatter(self, content: str) -> str:
+        """Bỏ qua phần YAML frontmatter để chỉ so sánh nội dung chính."""
+        lines = content.splitlines()
+        if not lines or not lines[0].startswith("---"):
+            return content
+            
+        # Tìm dòng "---" thứ hai
+        try:
+            second_sep_idx = lines.index("---", 1)
+            return "\n".join(lines[second_sep_idx + 1:]).strip()
+        except ValueError:
+            return content
 
     def _get_safe_filepath(self, note: dict, output_folder: Path) -> Path:
         """Sinh tên file và kiểm tra trùng lặp."""

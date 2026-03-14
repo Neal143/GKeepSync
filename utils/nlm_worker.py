@@ -134,17 +134,24 @@ class NLMWorker:
         result = self._run_nlm(
             ["nlm", "source", "list", notebook_id, "--json"]
         )
-        if not result or result.returncode != 0:
-            logger.warning("[NLM] Could not list sources for notebook %s", notebook_id)
+        if not result:
             return []
 
         try:
-            sources = json.loads(result.stdout)
+            sources = self._parse_json(result.stdout)
+            def _normalize_title(t: str) -> str:
+                t_str = t.strip().lower()
+                if t_str.endswith(".md"):
+                    return t_str[:-3]
+                return t_str
+
+            target_norm = _normalize_title(title)
+
             # The JSON structure may be a list of dicts with "id" / "title" keys.
             matching = [
                 s["id"]
                 for s in sources
-                if s.get("title", "").strip().lower() == title.strip().lower()
+                if isinstance(s, dict) and _normalize_title(s.get("title", "")) == target_norm
             ]
             if matching:
                 logger.info(
@@ -294,8 +301,7 @@ class NLMWorker:
         try:
             # Sometime CLI outputs trailing texts or newlines, trying to parse just the JSON
             # In some variations of the script, it dumps list of dicts.
-            import json
-            data = json.loads(res.stdout.strip())
+            data = NLMWorker._parse_json(res.stdout)
             if isinstance(data, list):
                 return data, None
             elif isinstance(data, dict) and "notebooks" in data:
@@ -303,20 +309,8 @@ class NLMWorker:
             elif isinstance(data, dict):
                 return [data], None
             return [], "Format JSON không hợp lệ."
-        except json.JSONDecodeError:
-            # Fallback text parsing if not valid json
-            lines = res.stdout.strip().split("\n")
-            nbs = []
-            for line in lines:
-                if line.startswith("-") or ":" in line:
-                    continue # Ignore styling
-                if len(line) > 10:
-                    nbs.append({"id": "unknown", "title": line[:50]})
-            if nbs:
-                return nbs, None
-            return [], f"Lỗi parse dữ liệu từ nlm. Stdout: {res.stdout[:50]}..."
         except Exception as e:
-            return [], str(e)
+            return [], f"Lỗi parse dữ liệu từ nlm: {e}"
 
     @staticmethod
     def get_sources(notebook_id: str) -> tuple[list[dict], Optional[str]]:
@@ -328,12 +322,35 @@ class NLMWorker:
             return [], f"Lỗi lấy nguồn: {res.stderr}"
 
         try:
-            import json
-            data = json.loads(res.stdout.strip())
+            data = NLMWorker._parse_json(res.stdout)
             if isinstance(data, list):
                 return data, None
             elif isinstance(data, dict) and "sources" in data:
                 return data["sources"], None
             return [], "Format JSON nguồn không hợp lệ."
         except Exception as e:
-            return [], str(e)
+            return [], f"Lỗi parse nguồn từ nlm: {e}"
+
+    @staticmethod
+    def _parse_json(text: str):
+        """Extract and parse JSON from messy CLI output."""
+        text = text.strip()
+        # Find potential JSON start/end
+        start_idx = text.find('[')
+        start_dict_idx = text.find('{')
+        
+        # Determine which comes first
+        if start_idx == -1 or (start_dict_idx != -1 and start_dict_idx < start_idx):
+            start_idx = start_dict_idx
+            
+        if start_idx == -1:
+            raise ValueError("No JSON block found in output")
+            
+        # Find last closing brace or bracket
+        end_idx = max(text.rfind(']'), text.rfind('}'))
+        
+        if end_idx == -1 or end_idx < start_idx:
+            raise ValueError("Incomplete JSON block in output")
+            
+        json_str = text[start_idx:end_idx+1]
+        return json.loads(json_str)
