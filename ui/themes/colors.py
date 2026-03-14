@@ -20,6 +20,7 @@ class MaterialColors:
     # Typography / Border
     TEXT_MAIN = "#1F1F1F"          # Chữ đen rõ
     TEXT_MUTED = "#757575"         # Chữ xám mờ
+    TEXT_LIGHT = "#E8EAED"         # Chữ sáng (dùng trên nền tối)
     BORDER_LIGHT = "#E0E0E0"       # Viền xám bọc khối Card
     BORDER_INPUT = "#DADCE0"       # Viền Input Form
 

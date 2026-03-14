@@ -1,0 +1,15 @@
+On branch fix/nlm-duplicate-upload
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   __pycache__/sync_engine.cpython-312.pyc
+	modified:   sync_engine.py
+	modified:   utils/__pycache__/nlm_worker.cpython-312.pyc
+	modified:   utils/nlm_worker.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	docs/plans/
+	status.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")

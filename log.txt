@@ -1,0 +1,90 @@
+commit 465dd35c549ae5e03a7fcdf97a9a0385ce95d655
+Author: AI Bot <bot@example.com>
+Date:   Sat Mar 14 01:40:25 2026 +0700
+
+    feat: complete background run feature and SRP refactor. update docs & brain.
+
+commit 3dbc056530b0dc962081a734a1e7932b3c801705
+Author: AI Bot <bot@example.com>
+Date:   Sat Mar 14 01:35:42 2026 +0700
+
+    docs: complete UI Mapping and UI/UX guidelines for background run feature
+
+commit fe80399ec3c462a1bf0192dd6424079c49a7b3b3
+Author: AI Bot <bot@example.com>
+Date:   Sat Mar 14 01:29:55 2026 +0700
+
+    docs: update BRIEF, PRD, DESIGN to reflect refactoring and background run feature
+
+commit c86e59820e1ac942265266a8615365ae6cb86087
+Merge: 2793a39 d713f48
+Author: AI Bot <bot@example.com>
+Date:   Sat Mar 14 01:23:49 2026 +0700
+
+    refactor: merge UI rendering logic breakdown & app.py cleanup
+
+commit d713f48731cbd85c3b3092c15acaed1e27ad3d1e
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 13:37:53 2026 +0700
+
+    docs: align design specs theme with PRD
+
+commit e6e48b55dc2a18ff6c318dd39812217867e48584
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 13:34:44 2026 +0700
+
+    docs: update PRD and UI_UX for recent auth and NLM background sync feature
+
+commit 2793a39f410f56b4ebaf5c1c0821c9d5ba621dfd
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 02:09:06 2026 +0700
+
+    feat(auth): add local core auth services and NLM async check
+
+commit fdd33ab341e48057168237843bf3fe1f7c7028ec
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 01:08:49 2026 +0700
+
+    refactor: restructure imports, add typing, and cleanup app.py & token_server.py
+
+commit b0520b97705525bbbce4612623610cdfbb8adff1
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 00:49:28 2026 +0700
+
+    fix(auth): downgrade to onefile build to fix SSL and add ANY profile scope to identity
+
+commit 1b7e1c9d286ca2faedf9aed038be3f679893a721
+Author: AI Bot <bot@example.com>
+Date:   Fri Mar 13 00:08:47 2026 +0700
+
+    feat(release): Packaging GKeepSync into 4-column layout and generating Release Build spec
+
+commit 7add8539ba6fed83dee501e7371a70b4b80be955
+Author: AI Bot <bot@example.com>
+Date:   Wed Mar 11 16:59:26 2026 +0700
+
+    chore: remove __pycache__ from git and ignore
+
+commit 9d85ecbeea9fef0c6d3d3208b807bfef1952453c
+Author: AI Bot <bot@example.com>
+Date:   Wed Mar 11 16:58:20 2026 +0700
+
+    fix(nlm): parse JSON from nlm tools CLI correctly and fix syntax error in list sources command; feat(ui): wire up real-time logging to Sync History tab for Keep and NLM Worker
+
+commit 060bc91a85d56bc1326233eddba125f85a5f3e22
+Author: AI Bot <bot@example.com>
+Date:   Wed Mar 11 15:47:23 2026 +0700
+
+    style(login): apply Apple Light Theme design to Login Frame
+
+commit 630aafb03a61ac1dddc9baa4878f85915b7e17be
+Author: AI Bot <bot@example.com>
+Date:   Wed Mar 11 15:36:23 2026 +0700
+
+    fix(login): restore backup login flow and update extension UI
+
+commit c7d1e6585253bda838c797d81f0d7af298c98528
+Author: AI Bot <bot@example.com>
+Date:   Wed Mar 11 01:39:16 2026 +0700
+
+    fix: extension oauth login handshake and PRD update

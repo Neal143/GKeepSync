@@ -156,7 +156,7 @@ class SyncEngine:
                         if nlm_enabled and nlm_nb_id and should_upload_nlm:
                             self._nlm_worker.enqueue(filepath, nlm_nb_id)
                             if self.on_sync_log:
-                                self.on_sync_log(filepath.name, "success", "Đang cập nhật lên NLM (file chưa có)")
+                                self.on_sync_log(filepath.name, "gray", "Sẽ đẩy lên NotebookLM sau đó")
                         else:
                             if self.on_sync_log:
                                 self.on_sync_log(filepath.name, "gray", "Đã có sẵn (không đổi)")
